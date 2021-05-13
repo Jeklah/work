@@ -1,5 +1,6 @@
 """
-Script to upload a directory of presets to a Qx unit.
+Script to help automate the uploading of a directory of presets to a Qx or QxL and possibly removing the
+old presets ready for production presets to be put on after testing.
 
 """
 
@@ -12,6 +13,25 @@ from test_system.logconfig import test_system_log
 from test_system.models.qxseries.qxexception import QxException
 
 log = logging.getLogger(test_system_log)
+presetDirs = []
+
+def menu():
+    click.secho('Welcome to the Preset Loader.', bg='green', fg='black', bold=True)
+    print()
+
+    print('Please choose the directory you would like to upload presets from.')
+    pwd = os.getcwd()
+    for subdir in os.listdir(pwd):
+        if os.path.isdir(subdir):
+            presetDirs.append(os.path.basename(subdir))
+            click.echo(click.style('* ', fg='blue', bold=True) + str(presetDirs.index(os.path.basename(subdir))+1) + ' ' + os.path.basename(subdir))
+    print()
+    presetChoiceNum = click.prompt('Directory Choice: ', type=click.IntRange(1, len(presetDirs)))
+    presetDirName = presetDirs[int(presetChoiceNum-1)]
+
+    print(f'You chose: {presetDirName}')
+
+
 
 def upload_preset(dirpath, host):
     """
@@ -53,6 +73,7 @@ def main(dirpath, host):
     python3 load_presets.py presets --host <desired_host>
 
     """
+    menu()
     upload_preset(dirpath, host)
 
 if __name__ == '__main__':
