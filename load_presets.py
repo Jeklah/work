@@ -36,6 +36,9 @@ def menu():
 def upload_preset(presetDirName, host):
     """
     Upload method that goes through each file in a given directory and uploads them.
+
+    :param presetDirName string
+    :param host string
     """
     qx = make_qx(hostname=host)
     myDir = Path(presetDirName)
@@ -51,10 +54,24 @@ def upload_preset(presetDirName, host):
         raise QxException(f"QxException occurred during uploading presets: {err}")
         log.error(f"Error: Upload FAILED. {err}")
 
+#@click.command()
+#@click.confirmation_option(prompt='Are you sure you want to delete all the presets currently on the unit?')
+def delete_preset(host):
+    """
+    Delete all presets on the unit after a confirmation check.
+
+    :param host string
+    """
+    qx = make_qx(hostname=host)
+    delPresets = qx.preset.list()
+    for lst in delPresets:
+        qx.preset.delete(lst)
+
 
 @click.command()
-@click.option('--host', prompt='Please enter a hostname')
-def main(host):
+@click.option('--delete', help='Delete the presets on the Qx/QxL before uploading.', is_flag=True)
+@click.option('--host', help='Hostname of the unit.', prompt='Please enter a hostname.')
+def main(host, delete):
     """
     \b
     Upload Presets script.
@@ -68,12 +85,23 @@ def main(host):
     This example folder is in the same folder as this script.
 
     Example usage:
+
     python3 load_presets.py presets
     python3 load_presets.py presets --host <desired_host>
 
     """
     dirPath = menu()
-    upload_preset(dirPath, host)
+    if(delete):
+        print('are you sure you want to delete')
+        ans = click.getchar()
+        if ans == 'y' or ans == 'Y':
+            delete_preset(host)
+            upload_preset(dirPath, host)
+        elif ans == 'n' or ans == 'N':
+            print('Aborting!')
+            exit()
+    else:
+        upload_preset(dirPath, host)
 
 if __name__ == '__main__':
     main()
