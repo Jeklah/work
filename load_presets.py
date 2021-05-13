@@ -31,14 +31,14 @@ def menu():
 
     print(f'You chose: {presetDirName}')
 
+    return presetDirName
 
-
-def upload_preset(dirpath, host):
+def upload_preset(presetDirName, host):
     """
     Upload method that goes through each file in a given directory and uploads them.
     """
     qx = make_qx(hostname=host)
-    myDir = Path(dirpath)
+    myDir = Path(presetDirName)
 
     try:
         for file in myDir.glob('*.preset'):
@@ -53,9 +53,8 @@ def upload_preset(dirpath, host):
 
 
 @click.command()
-@click.argument('dirpath')
 @click.option('--host', prompt='Please enter a hostname')
-def main(dirpath, host):
+def main(host):
     """
     \b
     Upload Presets script.
@@ -73,8 +72,8 @@ def main(dirpath, host):
     python3 load_presets.py presets --host <desired_host>
 
     """
-    menu()
-    upload_preset(dirpath, host)
+    dirPath = menu()
+    upload_preset(dirPath, host)
 
 if __name__ == '__main__':
     main()
