@@ -92,7 +92,7 @@ def main(host, delete):
     """
     dirPath = menu()
     if(delete):
-        print('are you sure you want to delete')
+        print('Are you sure you want to delete the presets on this machine?')
         ans = click.getchar()
         if ans == 'y' or ans == 'Y':
             delete_preset(host)
