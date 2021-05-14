@@ -64,8 +64,10 @@ def delete_preset(host):
     """
     qx = make_qx(hostname=host)
     delPresets = qx.preset.list()
-    for lst in delPresets:
-        qx.preset.delete(lst)
+
+    for preset in delPresets:
+        click.echo(f'Deleting preset file: {preset}')
+        qx.preset.delete(preset)
 
 
 @click.command()
@@ -91,7 +93,7 @@ def main(host, delete):
 
     """
     dirPath = menu()
-    if(delete):
+    if delete:
         print('Are you sure you want to delete the presets on this machine?')
         ans = click.getchar()
         if ans == 'y' or ans == 'Y':
