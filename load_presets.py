@@ -1,6 +1,8 @@
 """
 Script to help automate the uploading of a directory of presets to a Qx or QxL and possibly removing the
 old presets ready for production presets to be put on after testing.
+Able to iterate number of sub-dirs in a directory and generate a menu with options for the user
+to pick which sub-dir they would like to upload presets from.
 
 """
 
