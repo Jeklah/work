@@ -71,9 +71,10 @@ def delete_preset(host):
 
 
 @click.command()
+@click.option('--just-delete', '-jd', help='Just delete presets on the Qx/QxL',  flag_value='justDelete', is_flag=True)
 @click.option('--delete', help='Delete the presets on the Qx/QxL before uploading.', is_flag=True)
 @click.option('--host', help='Hostname of the unit.', prompt='Please enter a hostname.')
-def main(host, delete):
+def main(host, delete, just_delete):
     """
     \b
     Upload Presets script.
@@ -93,6 +94,10 @@ def main(host, delete):
 
     """
     dirPath = menu()
+    if just_delete:
+        delete_preset(host)
+        exit()
+
     if delete:
         print('Are you sure you want to delete the presets on this machine?')
         ans = click.getchar()
