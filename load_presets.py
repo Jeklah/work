@@ -12,12 +12,17 @@ import logging
 from pathlib import Path
 from test_system.factory import make_qx
 from test_system.logconfig import test_system_log
+from test_system.models.qxseries.operationmode import OperationMode
 from test_system.models.qxseries.qxexception import QxException
 
 log = logging.getLogger(test_system_log)
 presetDirs = []
 
 def menu():
+    """
+    Displays welcome message and iterates over folders in the current working directory to
+    generate a menu for the user to choose where to upload preset files from.
+    """
     click.secho('Welcome to the Preset Loader.', bg='green', fg='black', bold=True)
     print()
 
@@ -43,12 +48,13 @@ def upload_preset(presetDirName, host):
     :param host string
     """
     qx = make_qx(hostname=host)
+    qx.request_capability(OperationMode.SDI)
     myDir = Path(presetDirName)
 
     try:
         for file in myDir.glob('*.preset'):
-            filepathname = os.path.basename(file)
-            filename = os.path.splitext(filepathname)
+            filePathName = os.path.basename(file)
+            filename = os.path.splitext(filePathName)
             print(f"Uploading preset file: {filename[0]}")
             qx.preset.upload(file, filename[0])
             log.info(f"Upload complete: {filename[0]}")
@@ -65,6 +71,7 @@ def delete_preset(host):
     :param host string
     """
     qx = make_qx(hostname=host)
+    qx.request_capability(OperationMode.SDI)
     delPresets = qx.preset.list()
 
     for preset in delPresets:
@@ -74,16 +81,17 @@ def delete_preset(host):
 
 @click.command()
 @click.option('--just-delete', '-jd', help='Just delete presets on the Qx/QxL', flag_value='justDelete', is_flag=True)
-@click.option('--delete', help='Delete the presets on the Qx/QxL before uploading.', is_flag=True)
-@click.option('--host', help='Hostname of the unit.', prompt='Please enter a hostname.')
+@click.option('--delete', '-d', help='Delete the presets on the Qx/QxL before uploading.', is_flag=True)
+@click.option('--host', '-h', help='Hostname of the unit.', prompt='Please enter a hostname.')
 def main(host, delete, just_delete):
     """
     \b
-    Upload Presets script.
+    Upload Presets script, with option to delete any presets currently on the machine.
     \b
-    :param dirPath string  Path of the directory you would like to upload presets from.
-    :option --host string  Hostname of the unit you would like to upload presets to.
-    :option --help         Shows this message.
+    :option --delete      Use this flag if you would like to delete presets before uploading.
+    :option --just-delete Use this flag if you would like to just delete presets without uploading new ones.
+    :option --host string Hostname of the unit you would like to upload presets to.
+    :option --help        Shows this message.
 
     To be used from a machine that has the test_system installed.
     In the given example, presets is a folder with preset JSON files in.
@@ -91,27 +99,38 @@ def main(host, delete, just_delete):
 
     Example usage:
 
-    python3 load_presets.py presets
-    python3 load_presets.py presets --host <desired_host>
-
+    python3 load_presets.py
+    python3 load_presets.py --host <desired_host>
+    python3 load_presets.py --host <desired_host> --delete
+    python3 load_presets.py --host <desired_host> --just-delete
+    python3 load_presets.py --delete
+    python3 load_presets.py --just-delete
+    python3 load_presets,py --help
     """
-    if just_delete:
-        delete_preset(host)
-        exit()
-
+    exitFlag = False
     dirPath = menu()
 
-    if delete:
-        print('Are you sure you want to delete the presets on this machine?')
-        ans = click.getchar()
-        if ans == 'y' or ans == 'Y':
+    while not exitFlag:
+        if just_delete:
             delete_preset(host)
-            upload_preset(dirPath, host)
-        elif ans == 'n' or ans == 'N':
-            print('Aborting!')
             exit()
-    else:
-        upload_preset(dirPath, host)
+
+        if delete:
+            print('Are you sure you want to delete the presets on this machine?')
+            ans = click.getchar()
+
+            if ans == 'y' or ans == 'Y':
+                delete_preset(host)
+                upload_preset(dirPath, host)
+
+            elif ans == 'n' or ans == 'N':
+                print('Aborting!')
+                exit()
+
+            else:
+                print('Invalid input entered. Please choose either [Y/n].')
+        else:
+            upload_preset(dirPath, host)
 
 if __name__ == '__main__':
     main()
