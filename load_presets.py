@@ -22,6 +22,10 @@ def menu():
     """
     Displays welcome message and iterates over folders in the current working directory to
     generate a menu for the user to choose where to upload preset files from.
+
+    This method should be split up into two seperate methods, one as a welcome message for the user,
+    another for making and printing the list. This way, when the user selects the --just-delete option, it
+    would be possible not to display the menu, as they don't need to see it while using this option.
     """
     click.secho('Welcome to the Preset Loader.', bg='green', fg='black', bold=True)
     print()
@@ -39,6 +43,7 @@ def menu():
     print(f'You chose: {presetDirName}')
 
     return presetDirName
+
 
 def upload_preset(presetDirName, host):
     """
@@ -62,8 +67,7 @@ def upload_preset(presetDirName, host):
         raise QxException(f"QxException occurred during uploading presets: {err}")
         log.error(f"Error: Upload FAILED. {err}")
 
-#@click.command()
-#@click.confirmation_option(prompt='Are you sure you want to delete all the presets currently on the unit?')
+
 def delete_preset(host):
     """
     Delete all presets on the unit after a confirmation check.
