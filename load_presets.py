@@ -96,13 +96,13 @@ def main(host, delete, just_delete):
     :option --just-delete Use this flag if you would like to just delete presets without uploading new ones.
     :option --host string Hostname of the unit you would like to upload presets to.
     :option --help        Shows this message.
-
+    \b
     To be used from a machine that has the test_system installed.
     In the given example, presets is a folder with preset JSON files in.
     This example folder is in the same folder as this script.
-
+    \b
     Example usage:
-
+    \b
     python3 load_presets.py
     python3 load_presets.py --host <desired_host>
     python3 load_presets.py --host <desired_host> --delete
