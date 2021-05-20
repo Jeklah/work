@@ -64,8 +64,8 @@ def upload_preset(presetDirName, host):
             qx.preset.upload(file, filename[0])
             log.info(f"Upload complete: {filename[0]}")
     except QxException as err:
-        raise QxException(f"QxException occurred during uploading presets: {err}")
         log.error(f"Error: Upload FAILED. {err}")
+        raise QxException(f"QxException occurred during uploading presets: {err}")
 
 
 def delete_preset(host):
