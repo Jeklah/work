@@ -86,7 +86,7 @@ def delete_preset(host):
 def main(host, delete, just_delete):
     """
     \b
-    Upload Presets script, with option to delete any presets currently on the machine.
+    Upload Presets script, with option to delete any presets currently on the Qx/QxL.
     \b
     :option --delete      Use this flag if you would like to delete presets before uploading.
     :option --just-delete Use this flag if you would like to just delete presets without uploading new ones.
@@ -110,18 +110,19 @@ def main(host, delete, just_delete):
     exitFlag = False
     dirPath = menu()
 
-    while not exitFlag:
-        if just_delete:
-            delete_preset(host)
-            exit()
+    if just_delete:
+        delete_preset(host)
+        exit()
 
-        if delete:
+    if delete:
+        while not exitFlag:
             print('Are you sure you want to delete the presets on this machine?')
             ans = click.getchar()
 
             if ans == 'y' or ans == 'Y':
                 delete_preset(host)
                 upload_preset(dirPath, host)
+                exitFlag = True
 
             elif ans == 'n' or ans == 'N':
                 print('Aborting!')
@@ -129,8 +130,9 @@ def main(host, delete, just_delete):
 
             else:
                 print('Invalid input entered. Please choose either [Y/n].')
-        else:
-            upload_preset(dirPath, host)
+    else:
+        upload_preset(dirPath, host)
+        exit()
 
 if __name__ == '__main__':
     main()
