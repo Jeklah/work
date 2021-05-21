@@ -7,6 +7,7 @@ to pick which sub-dir they would like to upload presets from.
 """
 
 import os
+import time
 import click
 import logging
 from pathlib import Path
@@ -93,9 +94,15 @@ def delete_preset(host):
 
 def get_version(host):
     """
-    Checks the version of the software the qx is using.
+    Gets the version of the software the qx is using.
 
     :param host string
+
+    NOTE: I am not sure how to handle different versions yet. Whether to ask the user if they
+          are sure that the presets they want to upload are the right version, go further and
+          use regex to check the contents of the available presets (available to this script)
+          are for the right version, or just say this script is for 4.3 and above. I don't
+          think that is the right option though as David's qx is using 4.2.0.
     """
     try:
         qx = make_qx(hostname=host)
@@ -135,10 +142,12 @@ def main(host, delete, just_delete):
     python3 load_presets,py --help
     """
     exitFlag = False
-    dirPath = menu()
 
     version = get_version(host)
-    print(f'You have software version {version}.')
+    print(f'You have Qx software version {version}.')
+    time.sleep(3)
+
+    dirPath = menu()
 
     if just_delete:
         delete_preset(host)
