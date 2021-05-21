@@ -10,6 +10,7 @@ import os
 import click
 import logging
 from pathlib import Path
+from requests.exceptions import ConnectionError
 from test_system.factory import make_qx
 from test_system.logconfig import test_system_log
 from test_system.models.qxseries.operationmode import OperationMode
@@ -52,21 +53,24 @@ def upload_preset(presetDirName, host):
     :param presetDirName string
     :param host string
     """
-    qx = make_qx(hostname=host)
-    qx.request_capability(OperationMode.SDI)
-    myDir = Path(presetDirName)
-
     try:
-        for file in myDir.glob('*.preset'):
-            filePathName = os.path.basename(file)
-            filename = os.path.splitext(filePathName)
-            print(f"Uploading preset file: {filename[0]}")
-            qx.preset.upload(file, filename[0])
-            log.info(f"Upload complete: {filename[0]}")
-    except QxException as err:
-        log.error(f"Error: Upload FAILED. {err}")
-        raise QxException(f"QxException occurred during uploading presets: {err}")
+        qx = make_qx(hostname=host)
+        qx.request_capability(OperationMode.SDI)
+        myDir = Path(presetDirName)
 
+        try:
+            for file in myDir.glob('*.preset'):
+                filePathName = os.path.basename(file)
+                filename = os.path.splitext(filePathName)
+                print(f"Uploading preset file: {filename[0]}")
+                qx.preset.upload(file, filename[0])
+                log.info(f"Upload complete: {filename[0]}")
+        except QxException as err:
+            log.error(f"Error: Upload FAILED. {err}")
+            raise QxException(f"QxException occurred during uploading presets: {err}")
+    except ConnectionError as cerror:
+        log.error(f"Error: Connection failed: {cerror}")
+        raise ConnectionError(f"ConnectionError occurred while making a connection: {cerror}")
 
 def delete_preset(host):
     """
@@ -74,13 +78,17 @@ def delete_preset(host):
 
     :param host string
     """
-    qx = make_qx(hostname=host)
-    qx.request_capability(OperationMode.SDI)
-    delPresets = qx.preset.list()
+    try:
+        qx = make_qx(hostname=host)
+        qx.request_capability(OperationMode.SDI)
+        delPresets = qx.preset.list()
 
-    for preset in delPresets:
-        click.echo(f'Deleting preset file: {preset}')
-        qx.preset.delete(preset)
+        for preset in delPresets:
+            click.echo(f'Deleting preset file: {preset}')
+            qx.preset.delete(preset)
+    except ConnectionError as cerror:
+        log.error(f"Error: Connection failed: {cerror}")
+        raise ConnectionError(f"Connection failed. {cerror}.")
 
 
 @click.command()
