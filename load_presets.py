@@ -70,7 +70,7 @@ def upload_preset(presetDirName, host):
             raise QxException(f"QxException occurred during uploading presets: {err}")
     except ConnectionError as cerror:
         log.error(f"Error: Connection failed: {cerror}")
-        raise ConnectionError(f"ConnectionError occurred while making a connection: {cerror}")
+        raise ConnectionError(f"Connection Error occurred while making a connection: {cerror}")
 
 def delete_preset(host):
     """
@@ -90,6 +90,21 @@ def delete_preset(host):
         log.error(f"Error: Connection failed: {cerror}")
         raise ConnectionError(f"Connection failed. {cerror}.")
 
+
+def check_version(host):
+    """
+    Checks the version of the software the qx is using.
+
+    :param host string
+    """
+    try:
+        qx = make_qx(hostname=host)
+        qxVersion = qx.about['Software_version']
+
+        return qxVersion
+    except ConnectionError as cerror:
+        log.error(f"Error: Connection failed: {cerror}")
+        raise ConnectionError(f"Connection failed: {cerror}.")
 
 @click.command()
 @click.option('--just-delete', '-jd', help='Just delete presets on the Qx/QxL', flag_value='justDelete', is_flag=True)
@@ -121,6 +136,9 @@ def main(host, delete, just_delete):
     """
     exitFlag = False
     dirPath = menu()
+
+    version = check_version(host)
+    print(f'You have software version {version}.')
 
     if just_delete:
         delete_preset(host)
