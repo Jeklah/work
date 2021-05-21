@@ -91,7 +91,7 @@ def delete_preset(host):
         raise ConnectionError(f"Connection failed. {cerror}.")
 
 
-def check_version(host):
+def get_version(host):
     """
     Checks the version of the software the qx is using.
 
@@ -137,7 +137,7 @@ def main(host, delete, just_delete):
     exitFlag = False
     dirPath = menu()
 
-    version = check_version(host)
+    version = get_version(host)
     print(f'You have software version {version}.')
 
     if just_delete:
