@@ -92,6 +92,12 @@ def delete_preset(host):
         raise ConnectionError(f"Connection failed. {cerror}.")
 
 
+def phabrix_hostname(host):
+    domain = 'phabrix'
+    newhostname = host.split('.')[0] + '.' + domain + '.' + host.split('.')[1]
+
+    return newhostname
+
 def get_version(host):
     """
     Gets the version of the software the qx is using.
@@ -143,14 +149,15 @@ def main(host, delete, just_delete):
     """
     exitFlag = False
 
-    version = get_version(host)
+    newHost = phabrix_hostname(host)
+    version = get_version(newHost)
     print(f'You have Qx software version {version}.')
     time.sleep(3)
 
     dirPath = menu()
 
     if just_delete:
-        delete_preset(host)
+        delete_preset(newHost)
         exit()
 
     if delete:
@@ -159,8 +166,8 @@ def main(host, delete, just_delete):
             ans = click.getchar()
 
             if ans == 'y' or ans == 'Y':
-                delete_preset(host)
-                upload_preset(dirPath, host)
+                delete_preset(newHost)
+                upload_preset(dirPath, newHost)
                 exitFlag = True
 
             elif ans == 'n' or ans == 'N':
@@ -170,7 +177,7 @@ def main(host, delete, just_delete):
             else:
                 print('Invalid input entered. Please choose either [Y/n].')
     else:
-        upload_preset(dirPath, host)
+        upload_preset(dirPath, newHost)
         exit()
 
 if __name__ == '__main__':
