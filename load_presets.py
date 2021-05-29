@@ -20,6 +20,12 @@ from test_system.models.qxseries.qxexception import QxException
 log = logging.getLogger(test_system_log)
 presetDirs = []
 
+def generate_qx(host):
+    qx = make_qx(hostname=host)
+    qx.request_capability(OperationMode.SDI)
+
+    return qx
+
 def menu():
     """
     Displays welcome message and iterates over folders in the current working directory to
@@ -47,7 +53,7 @@ def menu():
     return presetDirName
 
 
-def upload_preset(presetDirName, host):
+def upload_preset(presetDirName, qx):
     """
     Upload method that goes through each file in a given directory and uploads them.
 
@@ -55,8 +61,6 @@ def upload_preset(presetDirName, host):
     :param host string
     """
     try:
-        qx = make_qx(hostname=host)
-        qx.request_capability(OperationMode.SDI)
         myDir = Path(presetDirName)
 
         try:
@@ -73,15 +77,13 @@ def upload_preset(presetDirName, host):
         log.error(f"Error: Connection failed: {cerror}")
         raise ConnectionError(f"Connection Error occurred while making a connection: {cerror}")
 
-def delete_preset(host):
+def delete_preset(qx):
     """
     Delete all presets on the unit after a confirmation check.
 
     :param host string
     """
     try:
-        qx = make_qx(hostname=host)
-        qx.request_capability(OperationMode.SDI)
         delPresets = qx.preset.list()
 
         for preset in delPresets:
@@ -98,7 +100,7 @@ def phabrix_hostname(host):
 
     return newhostname
 
-def get_version(host):
+def get_version(qx):
     """
     Gets the version of the software the qx is using.
 
@@ -111,7 +113,6 @@ def get_version(host):
           think that is the right option though as David's qx is using 4.2.0.
     """
     try:
-        qx = make_qx(hostname=host)
         qxVersion = qx.about['Software_version']
 
         return qxVersion
@@ -148,16 +149,18 @@ def main(host, delete, just_delete):
     python3 load_presets,py --help
     """
     exitFlag = False
+    qx = generate_qx(host)
 
     newHost = phabrix_hostname(host)
-    version = get_version(newHost)
+
+    version = get_version(qx)
     print(f'You have Qx software version {version}.')
     time.sleep(3)
 
     dirPath = menu()
 
     if just_delete:
-        delete_preset(newHost)
+        delete_preset(qx)
         exit()
 
     if delete:
@@ -166,8 +169,8 @@ def main(host, delete, just_delete):
             ans = click.getchar()
 
             if ans == 'y' or ans == 'Y':
-                delete_preset(newHost)
-                upload_preset(dirPath, newHost)
+                delete_preset(qx)
+                upload_preset(dirPath, qx)
                 exitFlag = True
 
             elif ans == 'n' or ans == 'N':
@@ -177,7 +180,7 @@ def main(host, delete, just_delete):
             else:
                 print('Invalid input entered. Please choose either [Y/n].')
     else:
-        upload_preset(dirPath, newHost)
+        upload_preset(dirPath, qx)
         exit()
 
 if __name__ == '__main__':
