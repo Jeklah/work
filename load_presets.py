@@ -14,8 +14,8 @@ from pathlib import Path
 from requests.exceptions import ConnectionError
 from test_system.factory import make_qx
 from test_system.logconfig import test_system_log
-from test_system.models.qxseries.operationmode import OperationMode
 from test_system.models.qxseries.qxexception import QxException
+from test_system.models.qxseries.operationmode import OperationMode
 
 log = logging.getLogger(test_system_log)
 presetDirs = []
