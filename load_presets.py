@@ -151,7 +151,8 @@ def main(host, delete, just_delete):
     exitFlag = False
     qx = generate_qx(host)
 
-    newHost = phabrix_hostname(host)
+    # Variable for hostname with phabrix.local
+    # newHost = phabrix_hostname(host)
 
     version = get_version(qx)
     print(f'You have Qx software version {version}.')
