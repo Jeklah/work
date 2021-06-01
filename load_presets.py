@@ -21,6 +21,11 @@ log = logging.getLogger(test_system_log)
 presetDirs = []
 
 def generate_qx(host):
+    """
+    Generates qx object.
+
+    :param host string
+    """
     qx = make_qx(hostname=host)
     qx.request_capability(OperationMode.SDI)
 
