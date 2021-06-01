@@ -41,12 +41,8 @@ def welcome():
 
 def menu():
     """
-    Displays welcome message and iterates over folders in the current working directory to
+    Displays a menu by iterating over folders in the current working directory to
     generate a menu for the user to choose where to upload preset files from.
-
-    This method should be split up into two seperate methods, one as a welcome message for the user,
-    another for making and printing the list. This way, when the user selects the --just-delete option, it
-    would be possible not to display the menu, as they don't need to see it while using this option.
     """
     print('Please choose the directory you would like to upload presets from.')
     pwd = os.getcwd()
