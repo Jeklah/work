@@ -31,6 +31,7 @@ def generate_qx(host):
 
     return qx
 
+
 def menu():
     """
     Displays welcome message and iterates over folders in the current working directory to
@@ -82,6 +83,7 @@ def upload_preset(presetDirName, qx):
         log.error(f"Error: Connection failed: {cerror}")
         raise ConnectionError(f"Connection Error occurred while making a connection: {cerror}")
 
+
 def delete_preset(qx):
     """
     Delete all presets on the unit after a confirmation check.
@@ -112,6 +114,7 @@ def phabrix_hostname(host):
 
     return newhostname
 
+
 def get_version(qx):
     """
     Gets the version of the software the qx is using.
@@ -131,6 +134,7 @@ def get_version(qx):
     except ConnectionError as cerror:
         log.error(f"Error: Connection failed: {cerror}")
         raise ConnectionError(f"Connection failed: {cerror}.")
+
 
 @click.command()
 @click.option('--just-delete', '-jd', help='Just delete presets on the Qx/QxL', flag_value='justDelete', is_flag=True)
@@ -180,16 +184,13 @@ def main(host, delete, just_delete):
         while not exitFlag:
             print('Are you sure you want to delete the presets on this machine?')
             ans = click.getchar()
-
             if ans == 'y' or ans == 'Y':
                 delete_preset(qx)
                 upload_preset(dirPath, qx)
                 exitFlag = True
-
             elif ans == 'n' or ans == 'N':
                 print('Aborting!')
                 exit()
-
             else:
                 print('Invalid input entered. Please choose either [Y/n].')
     else:
