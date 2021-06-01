@@ -1,5 +1,5 @@
 """
-Script to help automate the uploading of a directory of presets to a Qx or QxL and possibly removing the
+Script to help automate the uploading of a directory of presets to a Qx or QxL and removing the
 old presets ready for production presets to be put on after testing.
 Able to iterate number of sub-dirs in a directory and generate a menu with options for the user
 to pick which sub-dir they would like to upload presets from.
@@ -58,7 +58,7 @@ def upload_preset(presetDirName, qx):
     Upload method that goes through each file in a given directory and uploads them.
 
     :param presetDirName string
-    :param host string
+    :param qx obj
     """
     try:
         myDir = Path(presetDirName)
@@ -81,7 +81,7 @@ def delete_preset(qx):
     """
     Delete all presets on the unit after a confirmation check.
 
-    :param host string
+    :param qx obj
     """
     try:
         delPresets = qx.preset.list()
@@ -94,7 +94,14 @@ def delete_preset(qx):
         raise ConnectionError(f"Connection failed. {cerror}.")
 
 
+# Unused method for adding .phabrix between hostname and .local, as thought this was needed.
+# Keeping if something similar is needed in future.
 def phabrix_hostname(host):
+    """
+    Changes qx-000000.local to qx-000000.phabrix.local.
+
+    :param host string
+    """
     domain = 'phabrix'
     newhostname = host.split('.')[0] + '.' + domain + '.' + host.split('.')[1]
 
@@ -104,7 +111,7 @@ def get_version(qx):
     """
     Gets the version of the software the qx is using.
 
-    :param host string
+    :param qx obj
 
     NOTE: I am not sure how to handle different versions yet. Whether to ask the user if they
           are sure that the presets they want to upload are the right version, go further and
