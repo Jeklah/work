@@ -174,7 +174,6 @@ def main(host, delete, just_delete):
     print(f'You have Qx software version {version}.')
     time.sleep(3)
 
-
     if just_delete:
         welcome()
         delete_preset(qx)
