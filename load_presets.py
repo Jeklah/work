@@ -32,6 +32,13 @@ def generate_qx(host):
     return qx
 
 
+def welcome():
+    """
+    Prints the welcome message for the user.
+    """
+    click.secho('Welcome to the Preset Loader.', bg='green', fg='black', bold=True)
+
+
 def menu():
     """
     Displays welcome message and iterates over folders in the current working directory to
@@ -41,9 +48,6 @@ def menu():
     another for making and printing the list. This way, when the user selects the --just-delete option, it
     would be possible not to display the menu, as they don't need to see it while using this option.
     """
-    click.secho('Welcome to the Preset Loader.', bg='green', fg='black', bold=True)
-    print()
-
     print('Please choose the directory you would like to upload presets from.')
     pwd = os.getcwd()
     for subdir in os.listdir(pwd):
@@ -174,11 +178,14 @@ def main(host, delete, just_delete):
     print(f'You have Qx software version {version}.')
     time.sleep(3)
 
-    dirPath = menu()
 
     if just_delete:
+        welcome()
         delete_preset(qx)
         exit()
+
+    welcome()
+    dirPath = menu()
 
     if delete:
         while not exitFlag:
