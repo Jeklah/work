@@ -4,6 +4,7 @@ old presets ready for production presets to be put on after testing.
 Able to iterate number of sub-dirs in a directory and generate a menu with options for the user
 to pick which sub-dir they would like to upload presets from.
 
+NOTE: This script currently only works on qx/qxl version 4.3.0 onwards.
 """
 
 import os
@@ -147,7 +148,7 @@ def main(host, delete, just_delete):
     \b
     :option --delete      Use this flag if you would like to delete presets before uploading.
     :option --just-delete Use this flag if you would like to just delete presets without uploading new ones.
-    :option --host string Hostname of the unit you would like to upload presets to.
+    :option --host string Hostname of the Qx/QxL you would like to upload presets to.
     :option --help        Shows this message.
     \b
     To be used from a machine that has the test_system installed.
