@@ -1,7 +1,7 @@
 """
-Script to help automate the uploading of a directory of presets to a Qx or QxL and removing the
+Script to help automate the uploading of a directory of presets to a Qx and removing the
 old presets ready for production presets to be put on after testing.
-Able to iterate number of sub-dirs in a directory and generate a menu with options for the user
+Able to list the sub-dirs of a directory and generate a menu with options for the user
 to pick which sub-dir they would like to upload presets from.
 
 NOTE: This script currently only works on qx/qxl version 4.3.0 onwards.
@@ -19,11 +19,11 @@ from test_system.models.qxseries.qxexception import QxException
 from test_system.models.qxseries.operationmode import OperationMode
 
 log = logging.getLogger(test_system_log)
-presetDirs = []
 
 def generate_qx(host):
     """
     Generates qx object.
+    Checks for basic SDI functionality to avoid uploading presets for the wrong mode.
 
     :param host string
     """
@@ -42,9 +42,12 @@ def welcome():
 
 def menu():
     """
-    Displays a menu by iterating over folders in the current working directory to
+    Presents the user with a menu by iterating over folders in the current working directory to
     generate a menu for the user to choose where to upload preset files from.
+
+    Returns the users choice of sub-directories to upload presets from.
     """
+    presetDirs = []
     print('Please choose the directory you would like to upload presets from.')
     pwd = os.getcwd()
     for subdir in os.listdir(pwd):
@@ -74,12 +77,13 @@ def upload_preset(presetDirName, qx):
             for file in myDir.glob('*.preset'):
                 filePathName = os.path.basename(file)
                 filename = os.path.splitext(filePathName)
+                # Output to stdout for user interaction/letting the user know the script is at work.
                 print(f"Uploading preset file: {filename[0]}")
                 qx.preset.upload(file, filename[0])
                 log.info(f"Upload complete: {filename[0]}")
         except QxException as err:
-            log.error(f"Error: Upload FAILED. {err}")
-            raise QxException(f"QxException occurred during uploading presets: {err}")
+            log.error(f"Error: Upload FAILED. {file} {err}")
+            raise QxException(f"QxException occurred during uploading presets:{file} {err}")
     except ConnectionError as cerror:
         log.error(f"Error: Connection failed: {cerror}")
         raise ConnectionError(f"Connection Error occurred while making a connection: {cerror}")
@@ -97,6 +101,7 @@ def delete_preset(qx):
         for preset in delPresets:
             click.echo(f'Deleting preset file: {preset}')
             qx.preset.delete(preset)
+            log.info(f'Deleting preset file complete: {preset}')
     except ConnectionError as cerror:
         log.error(f"Error: Connection failed: {cerror}")
         raise ConnectionError(f"Connection failed. {cerror}.")
@@ -118,7 +123,7 @@ def phabrix_hostname(host):
 
 def get_version(qx):
     """
-    Gets the version of the software the qx is using.
+    Returns the version of the software the qx is using.
 
     :param qx obj
 
@@ -144,7 +149,7 @@ def get_version(qx):
 def main(host, delete, just_delete):
     """
     \b
-    Upload Presets script, with option to delete any presets currently on the Qx/QxL.
+    Upload Presets script, with option to delete any presets currently on the Qx
     \b
     :option --delete      Use this flag if you would like to delete presets before uploading.
     :option --just-delete Use this flag if you would like to just delete presets without uploading new ones.
@@ -157,13 +162,13 @@ def main(host, delete, just_delete):
     \b
     Example usage:
     \b
-    python3 load_presets.py
-    python3 load_presets.py --host <desired_host>
-    python3 load_presets.py --host <desired_host> --delete
-    python3 load_presets.py --host <desired_host> --just-delete
-    python3 load_presets.py --delete
-    python3 load_presets.py --just-delete
-    python3 load_presets,py --help
+    python load_presets.py
+    python load_presets.py --host <desired_host>
+    python load_presets.py --host <desired_host> --delete
+    python load_presets.py --host <desired_host> --just-delete
+    python load_presets.py --delete
+    python load_presets.py --just-delete
+    python load_presets,py --help
     """
     exitFlag = False
     qx = generate_qx(host)
@@ -175,30 +180,27 @@ def main(host, delete, just_delete):
     print(f'You have Qx software version {version}.')
     time.sleep(3)
 
+    welcome()
     if just_delete:
-        welcome()
         delete_preset(qx)
         exit()
 
-    welcome()
     dirPath = menu()
 
     if delete:
         while not exitFlag:
-            print('Are you sure you want to delete the presets on this machine?')
+            print('Are you sure you want to delete the presets on this Qx?')
             ans = click.getchar()
             if ans == 'y' or ans == 'Y':
                 delete_preset(qx)
-                upload_preset(dirPath, qx)
                 exitFlag = True
             elif ans == 'n' or ans == 'N':
                 print('Aborting!')
                 exit()
             else:
                 print('Invalid input entered. Please choose either [Y/n].')
-    else:
-        upload_preset(dirPath, qx)
-        exit()
+    upload_preset(dirPath, qx)
+    exit()
 
 if __name__ == '__main__':
     main()
