@@ -1,15 +1,19 @@
 """Player class for battleships."""
-
+import Ship
 class Player:
     """Player class to represent the player in the current game."""
 
-    def __init__(self, playerID, name, ships, shipsDestroyed, winner = False, shipCount = 5):
+    def __init__(self, playerID, name, shipsDestroyed, winner = False, shipCount = 5):
         self.name = name
-        self.ships = ships
+        self.ships = []
         self.shipsDestroyed = 0
         self.winner = winner
         self.playerID = playerID
         self.shipCount = shipCount
+
+    def shipList(self):
+        for _ in range(self.shipCount):
+            self.ships.append(Ship.shipID)
 
     def shoot(self, shot_posX, shot_posY, gameBoardID):
         if shot_posX == gameBoardID.shipPlaced and shot_posY == gameBoardID.shipPlaced:
