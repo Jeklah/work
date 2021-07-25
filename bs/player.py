@@ -3,13 +3,14 @@ import Ship
 class Player:
     """Player class to represent the player in the current game."""
 
-    def __init__(self, playerID, name, shipsDestroyed, winner = False, shipCount = 5):
+    def __init__(self, playerID, name, shipsDestroyed, opponentID, winner = False, shipCount = 5):
         self.name = name
         self.ships = []
         self.shipsDestroyed = 0
         self.winner = winner
         self.playerID = playerID
         self.shipCount = shipCount
+        self.opponentID = opponentID
 
     def shipList(self):
         for _ in range(self.shipCount):
@@ -20,6 +21,9 @@ class Player:
             print(f'{self.name} has hit a ship!')
         else:
             print(f'{self.name} misses!')
+
+    def placeShips(self):
+        ...
 
     def destroyedShip(self, oppnonentID):
         self.shipsDestroyed += 1
