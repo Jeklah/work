@@ -13,7 +13,8 @@ class Player:
         self.opponentID = opponentID
 
     def shipList(self):
-        for _ in range(self.shipCount):
+        for ship in range(self.shipCount):
+            Ship(Ship.shipHitpoints()[ship],Ship.shipID, Ship.alive)
             self.ships.append(Ship.shipID)
 
     def shoot(self, shot_posX, shot_posY, gameBoardID):
