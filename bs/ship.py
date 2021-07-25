@@ -1,13 +1,16 @@
+from random import randint
+
 
 class Ship:
     """Battleship class for the ships in the game."""
 
-    def __init__(self, hitpoints, posX, posY, name, alive=True):
+    def __init__(self, hitpoints, shipID=randint(), alive=True):
         self.hitpoints = hitpoints
-        self.posX = posX
-        self.posY = posY
+        self.posX = 0
+        self.posY = 0
         self.alive = alive
-        self.name = name
+        self.name = ''
+        self.shipID = shipID
 
     def shipHit(self):
         self.hitpoints = self.hitpoints - 1
@@ -26,4 +29,5 @@ class Ship:
         else:
             print(f'{playerID.name} has destroyed a ship!')
 
-
+    def shipHitpoints():
+        return [5, 4, 3, 3, 2]
