@@ -82,7 +82,8 @@ def menu():
                 'Update Standard',
                 'Add Standard',
                 'Check Standard CRC',
-                'Generate Golden Master'
+                'Generate Golden Master',
+                'Exit'
                ]
     print('Please choose what you would like to do from the list below.')
     for choice in actions:
@@ -90,6 +91,9 @@ def menu():
 
     user_choice_num = click.prompt('Please select your choice using the numbers: ', type=click.IntRange(1, len(actions)))
     print()
+    if user_choice_num == 5:
+        print('Bye!')
+        exit()
     print(f'You chose: {user_choice_num}: {actions[user_choice_num-1]}.')
     return user_choice_num
 
@@ -139,9 +143,9 @@ def get_stds(gen_qx, stds="test"):
                 for colour_map in all_stds[data_rate][resolution]
                 for gamut in all_stds[data_rate][resolution][colour_map]
             ]
-        else:
-            print(f"{gen_qx.hostname} is current in IP 2110 mode. Please switch to SDI mode.")
-        return standards_list
+    else:
+        print(f"{gen_qx.hostname} is current in IP 2110 mode. Please switch to SDI mode.")
+    return standards_list
 
 
 # Method to check standards_list mainly used while developing.
@@ -350,6 +354,7 @@ def update_crc(gen_qx, data_rate, resolution, mapping, gamut, pattern, new_crc):
     golden_master = unpickle_golden_master()
     std = (data_rate, resolution, mapping, gamut)
     crc_count = set_crc_count(gen_qx)
+    new_crc = '[' + str(new_crc) + ']'
 
     if crc_count > 1:
         click.echo(f'This standard has {crc_count} CRC values.')
