@@ -117,7 +117,7 @@ def user_input(user_choice_num):
 
 
 # Setting up filters to select standards.
-def get_stds(gen_qx, stds="test"):
+def gen_std_list(gen_qx, stds="test"):
     if not gen_qx.query_capability(OperationMode.IP_2110):
         if stds == "nightly": # Nightly filter, requirements agreed upon in meeting.
             standards_list = gen_qx.generator.get_matching_standards(
@@ -420,7 +420,7 @@ def main():
     welcome()
     user_action = menu()
     # standards_list = read_test_standards()
-    standards_list = get_stds(gen_qx, stds="fast")
+    standards_list = gen_std_list(gen_qx, stds="fast")
     # check_standards(gen_qx, standards_list)
     # check_patterns(gen_qx, standards_list)
     if user_action == 1:
