@@ -117,7 +117,7 @@ def user_input(user_choice_num):
 
 
 # Setting up filters to select standards.
-def gen_std_list(gen_qx, stds="test"):
+def gen_std_list(gen_qx, stds="confidence_test_standards"):
     if not gen_qx.query_capability(OperationMode.IP_2110):
         if stds == "nightly": # Nightly filter, requirements agreed upon in meeting.
             standards_list = gen_qx.generator.get_matching_standards(
@@ -133,6 +133,13 @@ def gen_std_list(gen_qx, stds="test"):
         elif stds == "fast": # This filter was added to speed up testing and dev. It returns 10 stds.
             standards_list = gen_qx.generator.get_matching_standards(
                 [1.5, 3.0], r"(1920x1080|1280x720)[i|p]50", "YCbCr:422:10", ".Rec.709"
+            )
+        elif stds == "confidence_test_standards": # This is the same filter as found in conftest.py
+            standards_list = gen_qx.generator.get_matching_standards(
+                [1.5, 3.0, 6.0, 12.0],
+                r'\d+x\d+p\d+',
+                r'YCbCr:422:10',
+                r'.*709'
             )
         elif stds == "all":
             all_stds = gen_qx.generator.get_standards()
@@ -150,24 +157,14 @@ def gen_std_list(gen_qx, stds="test"):
 
 # Method to check standards_list mainly used while developing.
 def check_standards(gen_qx, standards_list):
-    iterator = iter(standards_list)
-    sentinel = object()
-    while True:
-        std = next(iterator, sentinel)
-        if std is sentinel:
-            break
+    for std in standards_list:
         print(type(std))
 
 
 # Similar to above, method to check the patterns for the standards in standards_list.
 # Used for development.
 def check_patterns(gen_qx, standards_list):
-    iterator = iter(standards_list)
-    sentinel = object()
-    while True:
-        std = next(iterator, sentinel)
-        if std is sentinel:
-            break
+    for std in standards_list:
         test_patterns = gen_qx.generator.get_test_patterns(std[1], std[2], std[3])
     print(test_patterns)
 
@@ -233,64 +230,46 @@ def total_iterations(gen_qx, standards_list):
         total += len(test_patterns) * crc_count
     return total
 
-
 def qx_getCrc(gen_qx, anlyser_qx, standards_list):
     qx_crcs = []
     qx_settled = False
     crc_count = 0
     try:  # 9329 original number
         with alive_bar(total_iterations(gen_qx, standards_list)) as bar:
-            # for std in standards_list:
-            std_iterator = iter(standards_list)
-            std_sentinel = object()
-            try:
-                while True:
-                    std = next(std_iterator, std_sentinel)
-                    if std is std_sentinel:
-                        break
+            for std in standards_list:
+                try:
                     test_patterns = get_patterns(gen_qx, std)
-                    # for pattern in test_patterns:
-                    ptn_iterator = iter(test_patterns)
-                    ptn_sentinel = object()
-                    try:
-                        while True:
-                            pattern = next(ptn_iterator, ptn_sentinel)
-                            if pattern is ptn_sentinel:
-                                break
+                    for pattern in test_patterns:
+                        try:
                             gen_qx.generator.set_generator(std[1], std[2], std[3], pattern)
+                            time.sleep(3)
                             crc_count = set_crc_count(gen_qx)
                             std_params = list(std)
                             qx_settled = anlyser_qx.generator.is_generating_standard(std[1], std[2], std[3], pattern)
                             while qx_settled is False:
                                 qx_settled = (anlyser_qx.generator.is_generating_standard(std[1], std[2], std[3], pattern))
                             try:
-                                time.sleep(3)
+                                #time.sleep(3)
                                 (
                                     std_params[1],
                                     std_params[2],
                                     std_params[3],
                                 ) = anlyser_qx.analyser.get_analyser_status()
-                                # for crc_value in anlyser_qx.analyser.get_crc_analyser():
-                                crc_iterator = iter(anlyser_qx.analyser.get_crc_analyser())
-                                crc_sentinel = object()
-                                try:
-                                    while True:
-                                        crc_value = next(crc_iterator, crc_sentinel)
-                                        if crc_value is crc_sentinel:
-                                            break
+                                for crc_value in anlyser_qx.analyser.get_crc_analyser():
+                                    try:
                                         print(f'retrieved using qx: {std}, {pattern}, {crc_value["activePictureCrc"].upper()}')
                                         dict_to_df = {}
                                         dict_to_df.update(Standard=[eval(f'{std}')], Pattern=[eval(f'str("{pattern}")')], CrcValue=[eval(f'str("{crc_value["activePictureCrc"]}")')], CrcCount=[eval(f'{crc_count}')])
                                         qx_crcs.append(dict_to_df)
                                         bar()
-                                except KeyError as dataFrameErr:
-                                    log.error(f"An error occured while creating dataframe: {dataFrameErr}")
+                                    except KeyError as dataFrameErr:
+                                        log.error(f"An error occured while creating dataframe: {dataFrameErr}")
                             except AnalyserException as getAnlyStatErr:
                                 log.error(f"An error occurred getting the analyser status: {getAnlyStatErr}")
-                    except GeneratorException as setStdErr:
-                        log.error(f"An error occurred setting the standard: {setStdErr}")
-            except GeneratorException as genErr:
-                log.error(f"An error occurred generating the standard: {genErr}")
+                        except GeneratorException as setStdErr:
+                            log.error(f"An error occurred setting the standard: {setStdErr}")
+                except GeneratorException as genErr:
+                    log.error(f"An error occurred generating the standard: {genErr}")
     except GeneratorException as stdErr:
         log.error(f"An error occurred processing the standard list: {stdErr}")
     try:
@@ -419,8 +398,7 @@ def main():
     anlyser_qx = analyser_qx(analyser)
     welcome()
     user_action = menu()
-    # standards_list = read_test_standards()
-    standards_list = gen_std_list(gen_qx, stds="fast")
+    standards_list = gen_std_list(gen_qx, stds='confidence_test_standards')
     # check_standards(gen_qx, standards_list)
     # check_patterns(gen_qx, standards_list)
     if user_action == 1:
