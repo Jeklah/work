@@ -151,7 +151,7 @@ def unpickle_golden_master():
 
 
 @pytest.mark.sdi
-def test_Crc_goldenmaster(generator_qx, analyser_qx, confidence_test_standards):
+def test_crc_goldenmaster(generator_qx, analyser_qx, confidence_test_standards):
     crc_check_index_list = []
     crc_check_list = []
     crc_count = []
