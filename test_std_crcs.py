@@ -149,7 +149,7 @@ def unpickle_golden_master():
     unpickled_crcs = pd.read_pickle('./crc_dataframe.pkl')
     return unpickled_crcs
 
-
+# this should be seperated up into multiple seperate parts to make it less complex and less nested loops if possible.
 @pytest.mark.sdi
 def test_crc_goldenmaster(generator_qx, analyser_qx, confidence_test_standards):
     crc_check_index_list = []
@@ -163,20 +163,27 @@ def test_crc_goldenmaster(generator_qx, analyser_qx, confidence_test_standards):
     for pattern in pattern_list:
         print(f'checking: {confidence_test_standards[1]}, {confidence_test_standards[2]}, {confidence_test_standards[2]}, {pattern}')
         generator_qx.generator.set_generator(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
+
+        # this can probably be replaced with test_system.retry
         qx_settled = generator_qx.generator.is_generating_standard(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
         time.sleep(1)
         while qx_settled is False:
             qx_settled = generator_qx.generator.is_generating_standard(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
+
         crc_count.append(get_crc_count(generator_qx))
         #confidence_test_standards_params = list(confidence_test_standards)
         try:
+            # seperate the zips out in to seperate for loops and print out what the values are
             for (index, crc_value) in zip(crc_count, analyser_qx.analyser.get_crc_analyser()):
                 try:
+                    # print(crc_value)   find out what this is.
                     crc_check_index_list.append(golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards]) & \
                                                                   golden_master['Pattern'].apply(lambda y: y == [pattern])]['CrcValue'].index[index])
                     crc_check_list.append(golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards]) & \
                                                             golden_master['Pattern'].apply(lambda y: y == [pattern])]['CrcValue'][crc_check_index_list[index]])
                     try:
+                        # not comparing crc taken from the zip loop. well, this zip loop. it's coming from the first.
+                        # could be why it's only doing the first test_pattern.
                         for (crc, index) in zip(crc_check_list, crc_check_index_list):
                             print(f'crc is: {crc}')
                             assert crc_value == crc_check_list[crc_check_index_list[index]]
