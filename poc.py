@@ -6,17 +6,6 @@ standard_list = []
 a = ""
 
 
-def get_golden_master():
-    golden_master = pd.read_pickle('./crc_dataframe1.pkl')
-    return golden_master
-
-def write_dataframe(dataframe):
-    records = open("testDF.pkl", "wb")
-    pickler = pickle.Pickler(records)
-    pickler.dump(dataframe)
-    records.close()
-
-
 def create_gold_master(args):
     dict_to_df = {}
     for i in args:
