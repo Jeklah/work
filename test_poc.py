@@ -1,22 +1,14 @@
 import pandas as pd
 import pytest
-from poc import get_dataframe_index
-
-
-def create_test_golden_master(args):
-    dict_to_df = {}
-    for i in args:
-        dict_to_df[i[0]] = i[1]
-    golden_master = pd.DataFrame(dict_to_df.values(), index=dict_to_df.keys())
-
-    return golden_master
+from poc import (get_dataframe_index,
+                 create_gold_master)
 
 
 def setup_test_env():
     """
     Setup the test environment
     """
-    golden_master = create_test_golden_master([("a", [0, "first entry"]), ("b", [1, "second entry"])])
+    golden_master = create_gold_master([("a", [0, "first entry"]), ("b", [1, "second entry"])])
     return golden_master
 
 
@@ -67,8 +59,7 @@ def test_gold_master_bad_first_value():
     golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
 
-    # Intentional fail, expecting "first entry"
-    assert golden_master.loc[index[0], 1] == "second entry"
+    assert golden_master.loc[index[0], 1] != "second entry"
 
 
 def test_gold_master_bad_second_value():
@@ -78,8 +69,7 @@ def test_gold_master_bad_second_value():
     golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
 
-    # Intentional fail, expecting "second entry"
-    assert golden_master.loc[index[1], 1] == "first entry"
+    assert golden_master.loc[index[1], 1] != "first entry"
 
 
 def test_gold_master_bad_first_key():
@@ -89,8 +79,7 @@ def test_gold_master_bad_first_key():
     golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
 
-    # Intentional fail, expecting the first key to be "a".
-    assert index[0] == "z"
+    assert index[0] != "z"
 
 
 def test_gold_master_bad_second_key():
@@ -100,5 +89,4 @@ def test_gold_master_bad_second_key():
     golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
 
-    # Intentional fail, expecting the second key to be "b".
-    assert index[1] == "y"
+    assert index[1] != "y"
