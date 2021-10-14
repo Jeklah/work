@@ -66,7 +66,7 @@ def print_gold_master(dataframe):
     print(indexvar[1], dataframe.loc[indexvar[1], 1])
 
 
-def getataframe_index(dataframe):
+def get_dataframe_index(dataframe):
     """
     Function to return the index
     """
