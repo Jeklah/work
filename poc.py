@@ -63,7 +63,7 @@ def print_gold_master(dataframe):
     indexvar = get_dataframe_index(dataframe)
     #print(repr(indexvar.__dict__))
     #for entry in get_dataframe_index(dataframe):
-    print(indexvar[1], dataframe.loc[indexvar[1], 1])qh
+    print(indexvar[1], dataframe.loc[indexvar[1], 1])
 
 
 def getataframe_index(dataframe):
