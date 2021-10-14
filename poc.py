@@ -6,6 +6,10 @@ a = ""
 
 
 def create_gold_master(args):
+    """
+    Function to create a sample pandas dataframe using the dictionary api
+    to process args.
+    """
     dict_to_df = {}
     for i in args:
         dict_to_df[i[0]] = i[1]
@@ -20,6 +24,10 @@ def create_gold_master(args):
 
 
 def check_gold_master(args, dataframe):
+    """
+    Function to check the value in the dictionary when a key is passed as a parameter in args.
+    ** An assumption is made here that only one argument will be passed to main. **
+    """
     indexvar = get_dataframe_index(dataframe)
     for entry in indexvar:
         if entry == args:
@@ -29,8 +37,14 @@ def check_gold_master(args, dataframe):
 
 
 def print_gold_master(dataframe):
+    """
+    Function used to print out values from the gold master.
+    Used for debugging.
+    """
     indexvar = get_dataframe_index(dataframe)
-    #print(repr(indexvar.__dict__))
+
+    # Note the use of repr (represent) here to find out what it contains and type
+    print(repr(indexvar.index.__dict__))
     #for entry in get_dataframe_index(dataframe):
     print(indexvar[1], dataframe.loc[indexvar[1], 1])
 
@@ -42,7 +56,6 @@ def get_dataframe_index(dataframe):
 def main(args):
     golden_master = create_gold_master([("a", [0, "first entry"]), ("b", [1, "second entry"])])
     print_gold_master(golden_master)
-    write_dataframe(golden_master)
     #print(args, check_gold_master(args, golden_master))
 
 
