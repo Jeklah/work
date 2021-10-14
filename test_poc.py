@@ -19,7 +19,7 @@ def test_gold_master_first_value(golden_master):
     Verify the value of the first value is "first entry"
     """
     index = get_dataframe_index(golden_master)
-    FIRST_ENTRY = golden_master.loc[index[0], 0]
+    FIRST_ENTRY = golden_master.loc[index[0], 'column1']
 
     assert FIRST_ENTRY == "first entry col1"
 
@@ -29,7 +29,7 @@ def test_gold_master_second_value(golden_master):
     Verify the value of the second value is "second entry"
     """
     index = get_dataframe_index(golden_master)
-    SECOND_ENTRY = golden_master.loc[index[0], 1]
+    SECOND_ENTRY = golden_master.loc[index[0], "column2"]
 
     assert SECOND_ENTRY  == "second entry col1"
 
@@ -62,7 +62,7 @@ def test_gold_master_bad_first_value(golden_master):
     Verify that the first value is not what we expect it to be.
     """
     index = get_dataframe_index(golden_master)
-    FIRST_ENTRY_BAD = golden_master.loc[index[0], 1]
+    FIRST_ENTRY_BAD = golden_master.loc[index[0], "column2"]
 
 
     assert FIRST_ENTRY_BAD != "second entry"
@@ -74,7 +74,7 @@ def test_gold_master_bad_second_value(golden_master):
     Verify that the second value is not what we expect it to be.
     """
     index = get_dataframe_index(golden_master)
-    SECOND_ENTRY_BAD = golden_master.loc[index[1], 1]
+    SECOND_ENTRY_BAD = golden_master.loc[index[1], "column2"]
 
     assert SECOND_ENTRY_BAD != "first entry"
 
