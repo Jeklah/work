@@ -80,13 +80,13 @@ def gen_confidence_test_standards_list(generator_qx, std_filter='confidence_test
                 r".*709"
             )
         elif std_filter == 'all':
-            all_confidence_test_standardss = generator_qx.generator.get_standards()
+            all_confidence_test_standards = generator_qx.generator.get_standards()
             standards_list = [
                 [data_rate, resolution, colour_map, gamut]
-                for data_rate in all_confidence_test_standardss
-                for resolution in all_confidence_test_standardss[data_rate]
-                for colour_map in all_confidence_test_standardss[data_rate][resolution]
-                for gamut in all_confidence_test_standardss[data_rate][resolution][colour_map]
+                for data_rate in all_confidence_test_standards
+                for resolution in all_confidence_test_standards[data_rate]
+                for colour_map in all_confidence_test_standards[data_rate][resolution]
+                for gamut in all_confidence_test_standards[data_rate][resolution][colour_map]
             ]
     else:
         print(f'{generator_qx.hostname} is currently in IP 2110 mode. Please switch to SDI mode.')
@@ -177,7 +177,7 @@ def test_crc_goldenmaster(generator_qx, analyser_qx, confidence_test_standards):
             # seperate the zips out in to seperate for loops and print out what the values are
             for count in crc_count:
                 print(f'count: {count}')
-                crc_index = crc_count.index(count)
+                crc_index = crc_count.index(count)  # i think here is where the index is being set incorrectly.
             for crc_value in analyser_qx.analyser.get_crc_analyser():
                 try:
                     print(f'crc_value: {crc_value["activePictureCrc"]}')
