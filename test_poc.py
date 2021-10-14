@@ -4,89 +4,98 @@ from poc import (get_dataframe_index,
                  create_gold_master)
 
 
-def setup_test_env():
+def load_golden_master():
     """
-    Setup the test environment
+    Function to load the golden master from external file.
     """
-    golden_master = create_gold_master([("a", [0, "first entry"]), ("b", [1, "second entry"])])
-    return golden_master
+    golden_master = pd.read_pickle('./test_df.pkl')
+
+    yield golden_master
 
 
-def test_gold_master_first_value():
+@pytest.mark.parametrize('golden_master', load_golden_master())
+def test_gold_master_first_value(golden_master):
     """
     Verify the value of the first value is "first entry"
     """
-    golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
+    FIRST_ENTRY = golden_master.loc[index[0], 0]
 
-    assert golden_master.loc[index[0], 1] == "first entry"
+    assert FIRST_ENTRY == "first entry col1"
 
-
-def test_gold_master_second_value():
+@pytest.mark.parametrize('golden_master', load_golden_master())
+def test_gold_master_second_value(golden_master):
     """
     Verify the value of the second value is "second entry"
     """
-    golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
+    SECOND_ENTRY = golden_master.loc[index[0], 1]
 
-    assert golden_master.loc[index[1], 1] == "second entry"
+    assert SECOND_ENTRY  == "second entry col1"
 
 
-def test_gold_master_first_key():
+@pytest.mark.parametrize('golden_master', load_golden_master())
+def test_gold_master_first_key(golden_master):
     """
     Verify the value of the first key is "a"
     """
-    golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
+    FIRST_ROW = index[0]
 
-    assert index[0] == "a"
+    assert FIRST_ROW == "named row 1"
 
 
-def test_gold_master_second_key():
+@pytest.mark.parametrize('golden_master', load_golden_master())
+def test_gold_master_second_key(golden_master):
     """
     Verify the value of the second key is "b"
     """
-    golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
+    SECOND_ROW = index[1]
 
-    assert index[1] == "b"
+    assert SECOND_ROW == "named row 2"
 
 
-def test_gold_master_bad_first_value():
+@pytest.mark.parametrize('golden_master', load_golden_master())
+def test_gold_master_bad_first_value(golden_master):
     """
     Verify that the first value is not what we expect it to be.
     """
-    golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
+    FIRST_ENTRY_BAD = golden_master.loc[index[0], 1]
 
-    assert golden_master.loc[index[0], 1] != "second entry"
+
+    assert FIRST_ENTRY_BAD != "second entry"
 
 
-def test_gold_master_bad_second_value():
+@pytest.mark.parametrize('golden_master', load_golden_master())
+def test_gold_master_bad_second_value(golden_master):
     """
     Verify that the second value is not what we expect it to be.
     """
-    golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
+    SECOND_ENTRY_BAD = golden_master.loc[index[1], 1]
 
-    assert golden_master.loc[index[1], 1] != "first entry"
+    assert SECOND_ENTRY_BAD != "first entry"
 
 
-def test_gold_master_bad_first_key():
+@pytest.mark.parametrize('golden_master', load_golden_master())
+def test_gold_master_bad_first_key(golden_master):
     """
     Verify that the first key is not "a"
     """
-    golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
+    FIRST_ROW_BAD = index[0]
 
-    assert index[0] != "z"
+    assert FIRST_ROW_BAD != "z"
 
 
-def test_gold_master_bad_second_key():
+@pytest.mark.parametrize('golden_master', load_golden_master())
+def test_gold_master_bad_second_key(golden_master):
     """
     Verify that the second key is not "b"
     """
-    golden_master = setup_test_env()
     index = get_dataframe_index(golden_master)
+    SECOND_ROW_BAD = index[1]
 
-    assert index[1] != "y"
+    assert SECOND_ROW_BAD != "y"
