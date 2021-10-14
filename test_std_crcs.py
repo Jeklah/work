@@ -146,7 +146,7 @@ def get_crc_count(generator_qx):
 
 
 def unpickle_golden_master():
-    unpickled_crcs = pd.read_pickle('./crc_dataframe.pkl')
+    unpickled_crcs = pd.read_pickle('./crc_dataframe1.pkl')
     return unpickled_crcs
 
 # this should be seperated up into multiple seperate parts to make it less complex and less nested loops if possible.
@@ -161,7 +161,8 @@ def test_crc_goldenmaster(generator_qx, analyser_qx, confidence_test_standards):
     # for param in confidence_test_standards:
     pattern_list = gen_pattern_list(generator_qx, confidence_test_standards)
     for pattern in pattern_list:
-        print(f'checking: {confidence_test_standards[1]}, {confidence_test_standards[2]}, {confidence_test_standards[2]}, {pattern}')
+        crc_count = []
+        print(f'checking: {confidence_test_standards[1]}, {confidence_test_standards[2]}, {pattern}')
         generator_qx.generator.set_generator(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
 
         # this can probably be replaced with test_system.retry
@@ -174,20 +175,35 @@ def test_crc_goldenmaster(generator_qx, analyser_qx, confidence_test_standards):
         #confidence_test_standards_params = list(confidence_test_standards)
         try:
             # seperate the zips out in to seperate for loops and print out what the values are
-            for (index, crc_value) in zip(crc_count, analyser_qx.analyser.get_crc_analyser()):
+            for count in crc_count:
+                print(f'count: {count}')
+                crc_index = crc_count.index(count)
+            for crc_value in analyser_qx.analyser.get_crc_analyser():
                 try:
-                    # print(crc_value)   find out what this is.
+                    print(f'crc_value: {crc_value["activePictureCrc"]}')
                     crc_check_index_list.append(golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards]) & \
-                                                                  golden_master['Pattern'].apply(lambda y: y == [pattern])]['CrcValue'].index[index])
+                                                                  golden_master['Pattern'].apply(lambda y: y == [pattern])]['CrcValue'].index[crc_index])
+                    #crc_check_list.append(crc_value['activePictureCrc'])
                     crc_check_list.append(golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards]) & \
-                                                            golden_master['Pattern'].apply(lambda y: y == [pattern])]['CrcValue'][crc_check_index_list[index]])
+                                                            golden_master['Pattern'].apply(lambda y: y == [pattern])]['CrcValue'][crc_check_index_list[crc_index]])
                     try:
-                        # not comparing crc taken from the zip loop. well, this zip loop. it's coming from the first.
-                        # could be why it's only doing the first test_pattern.
                         for (crc, index) in zip(crc_check_list, crc_check_index_list):
                             print(f'crc is: {crc}')
-                            assert crc_value == crc_check_list[crc_check_index_list[index]]
-                               #log.error(f'TEST FAILED: {crc_value} does not match stored value for {confidence_test_standards}: {pattern}')
+                            print(f'length of crc_check_list: {len(crc_check_list)}')
+                            print(f'length of crc_check_index_list: {len(crc_check_index_list)}')
+                            #print(f'crc check list crc: {str(crc_check_list[crc_check_index_list[index]]).strip("[]")}')
+                            check_crc = crc_check_list[crc_check_index_list[index]]
+                            print(f'check_crc: {check_crc}')
+                            mod_check_crc = check_crc[index]
+                            print(f'mod_check_crc: {mod_check_crc}')
+                            print(f'mod_check_crc type: {type(mod_check_crc)}')
+                            print(f'crc from golden master: {check_crc}')
+                            print(type(crc_value["activePictureCrc"]))
+                            print(type(mod_check_crc))
+                            print(repr(crc_value["activePictureCrc"]))
+                            print(repr(mod_check_crc))
+                            assert crc_value["activePictureCrc"] == mod_check_crc     # this HAS to be correct. both strings, both appearing without quotes, no assertion failure.
+                                # log.error(f'TEST FAILED: {crc_value} does not match stored value for {confidence_test_standards}: {pattern}')
                     except TestException as err:
                         log.error(f'An error occurred while checking CRC values: {err}')
                 except TestException as listErr:
