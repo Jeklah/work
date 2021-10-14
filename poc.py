@@ -1,5 +1,4 @@
 import pandas as pd
-import pickle
 
 
 standard_list = []
