@@ -42,20 +42,18 @@ def print_gold_master(dataframe):
     Used for debugging.
     """
     indexvar = get_dataframe_index(dataframe)
-
-    # Note the use of repr (represent) here to find out what it contains and type
-    print(repr(indexvar.index.__dict__))
+    #
+    #print(repr(indexvar.__dict__))
     #for entry in get_dataframe_index(dataframe):
-    print(indexvar[1], dataframe.loc[indexvar[1], 1])
+    print(indexvar[1], dataframe.loc[indexvar[1], 1])qh
 
 
 def get_dataframe_index(dataframe):
+    """"
+    Function to return the index
+    """"
     return dataframe.index._index_data
 
-
-def main(args):
-    golden_master = create_gold_master([("a", [0, "first entry"]), ("b", [1, "second entry"])])
-    print_gold_master(golden_master)
     #print(args, check_gold_master(args, golden_master))
 
 
