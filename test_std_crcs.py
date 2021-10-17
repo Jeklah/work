@@ -95,10 +95,13 @@ def gen_confidence_test_standards_list(generator_qx, std_filter='confidence_test
 
 # Get all test patterns for a given standard.
 @pytest.mark.sdi
+@pytest.fixture
 def gen_pattern_list(generator_qx, confidence_test_standards):
     try:
         test_patterns = generator_qx.generator.get_test_patterns(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3])
-        return test_patterns
+        for pattern in test_patterns:
+            yield pattern
+        #return test_patterns
     except GeneratorException as pattErr:
         log.error(f'An error occurred while generating test_patterns: {pattErr}')
 
@@ -149,64 +152,123 @@ def unpickle_golden_master():
     unpickled_crcs = pd.read_pickle('./crc_dataframe1.pkl')
     return unpickled_crcs
 
+
+#@pytest.mark.sdi
+#def test_patterns(generator_qx, analyser_qx, confidence_test_standards):
+#    golden_master = unpickle_golden_master()
+#    golden_standards = golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards])]
+#    qx_std_pattern_list = gen_pattern_list(generator_qx, confidence_test_standards)
+#    pattern_counter = 0
+#    qx_settled = False
+#
+#    for pattern in qx_std_pattern_list:
+#
+#        check_test_pattern = golden_standards.iat[pattern_counter, 1]
+#        crc_list = golden_standards.iat[pattern_counter, 2]
+#        pattern_counter += 1
+#        print(f'golden_master info: test_pattern: {check_test_pattern}, crc: {crc_list}')
+#        generator_qx.generator.set_generator(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
+#        time.sleep(2)
+#        qx_settled = generator_qx.generator.is_generating_standard(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
+#        while qx_settled is False:
+#            qx_settled = generator_qx.generator.is_generating_standard(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
+#        index_counter = 0
+#
+#        for crc_response in analyser_qx.analyser.get_crc_analyser():
+#            print(f'qx info. pattern: {pattern}, crc: {crc_list}')
+#            print(f"golden master info. pattern: {check_test_pattern}, crc: {crc_response['activePictureCrc']}")
+#
+#            assert pattern == check_test_pattern.get(0)
+#            assert crc_list[index_counter] == crc_response['activePictureCrc']
+#            index_counter += 1
+
+
 # this should be seperated up into multiple seperate parts to make it less complex and less nested loops if possible.
-@pytest.mark.sdi
-def test_crc_goldenmaster(generator_qx, analyser_qx, confidence_test_standards):
+@pytest.mark.sdii
+def test_crc_goldenmaster(generator_qx, analyser_qx, confidence_test_standards, gen_pattern_list):
     crc_check_index_list = []
     crc_check_list = []
     crc_count = []
     golden_master = unpickle_golden_master()
     qx_settled = False
+    standards = golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards])]
+    print(standards)
+
     # confidence_test_standards_list = gen_std_list(generator_qx, std_filter='test')
-    # for param in confidence_test_standards:
-    pattern_list = gen_pattern_list(generator_qx, confidence_test_standards)
-    for pattern in pattern_list:
-        crc_count = []
-        print(f'checking: {confidence_test_standards[1]}, {confidence_test_standards[2]}, {pattern}')
-        generator_qx.generator.set_generator(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
+    #pattern_list = gen_pattern_list(generator_qx, confidence_test_standards)
+    pattern_counter = 0
+    #for pattern in gen_pattern_list:
 
-        # this can probably be replaced with test_system.retry
-        qx_settled = generator_qx.generator.is_generating_standard(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
-        time.sleep(1)
-        while qx_settled is False:
-            qx_settled = generator_qx.generator.is_generating_standard(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
+    crc_count = []
+    check_test_patterns = standards.iat[pattern_counter, 1]
+    crcs = standards.iat[pattern_counter, 2]
+    pattern_counter += 1
+    print(f'test pattern: {check_test_patterns}: crcs, {crcs}')
 
-        crc_count.append(get_crc_count(generator_qx))
-        #confidence_test_standards_params = list(confidence_test_standards)
-        try:
-            # seperate the zips out in to seperate for loops and print out what the values are
-            for count in crc_count:
-                print(f'count: {count}')
-                crc_index = crc_count.index(count)
-            for crc_value in analyser_qx.analyser.get_crc_analyser():
-                try:
-                    print(f'crc_value: {crc_value["activePictureCrc"]}')
-                    crc_check_index_list.append(golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards]) & \
-                                                                  golden_master['Pattern'].apply(lambda y: y == [pattern])]['CrcValue'].index[crc_index])
-                    #crc_check_list.append(crc_value['activePictureCrc'])
-                    crc_check_list.append(golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards]) & \
-                                                            golden_master['Pattern'].apply(lambda y: y == [pattern])]['CrcValue'][crc_check_index_list[crc_index]])
-                    try:
-                        for (crc, index) in zip(crc_check_list, crc_check_index_list):
-                            print(f'crc is: {crc}')
-                            print(f'length of crc_check_list: {len(crc_check_list)}')
-                            print(f'length of crc_check_index_list: {len(crc_check_index_list)}')
-                            #print(f'crc check list crc: {str(crc_check_list[crc_check_index_list[index]]).strip("[]")}')
-                            check_crc = crc_check_list[crc_check_index_list[index]]
-                            print(f'check_crc: {check_crc}')
-                            mod_check_crc = check_crc[index]
-                            print(f'mod_check_crc: {mod_check_crc}')
-                            print(f'mod_check_crc type: {type(mod_check_crc)}')
-                            print(f'crc from golden master: {check_crc}')
-                            print(type(crc_value["activePictureCrc"]))
-                            print(type(mod_check_crc))
-                            print(repr(crc_value["activePictureCrc"]))
-                            print(repr(mod_check_crc))
-                            assert crc_value["activePictureCrc"] == mod_check_crc     # this HAS to be correct. both strings, both appearing without quotes, no assertion failure.
-                                # log.error(f'TEST FAILED: {crc_value} does not match stored value for {confidence_test_standards}: {pattern}')
-                    except TestException as err:
-                        log.error(f'An error occurred while checking CRC values: {err}')
-                except TestException as listErr:
-                    log.error(f'An error occured while making crc lists: {listErr}')
-        except TestException as paraErr:
-            log.error(f'An error occurred while setting confidence_test_standards parameters: {paraErr}')
+    generator_qx.generator.set_generator(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], gen_pattern_list)
+    qx_settled = generator_qx.generator.is_generating_standard(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], gen_pattern_list)
+    time.sleep(2)
+    while qx_settled is False:
+        time.sleep(2)
+        qx_settled = generator_qx.generator.is_generating_standard(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], gen_pattern_list)
+    index_counter = 0
+    for crc_response in analyser_qx.analyser.get_crc_analyser():
+
+            #print(crc_response)
+        print(f"gold master crc number, index number {index_counter}: {crcs[index_counter]} qx crc: {crc_response['activePictureCrc']}", file=sys.stderr)
+        assert crc_response['activePictureCrc'] != crcs[index_counter]
+        index_counter += 1
+            #wait = input('please push enter to continue')
+
+        #print(f"{golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards])]}")
+       # print(f'checking: {confidence_test_standards[1]}, {confidence_test_standards[2]}, {pattern}')
+       # generator_qx.generator.set_generator(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
+
+       # # this can probably be replaced with test_system.retry
+       # qx_settled = generator_qx.generator.is_generating_standard(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
+       # while qx_settled is False:
+       #     time.sleep(1)
+       #     qx_settled = generator_qx.generator.is_generating_standard(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
+
+       # crc_count.append(get_crc_count(generator_qx))
+       # try:
+       #     # seperate the zips out in to seperate for loops and print out what the values are
+       #     for count in crc_count:
+       #         print(f'count: {count}')
+       #         crc_index = crc_count.index(count)
+       #     for crc_value in analyser_qx.analyser.get_crc_analyser():
+       #         try:
+
+       #                 crc_check_index_list.append(golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards]) & \
+       #                                                               golden_master['Pattern'].apply(lambda y: y == [pattern])]['CrcValue'].index[crc_index])
+       #                 crc_check_list.append(golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards]) & \
+       #                                                         golden_master['Pattern'].apply(lambda y: y == [pattern])]['CrcValue'][crc_check_index_list[crc_index]])
+
+       #                 print(f'crc_valuei from qx: {crc_value["activePictureCrc"]}')
+       #                 print(f'standard: {confidence_test_standards}')
+       #                 print(f'pattern: {pattern}')
+       #                 print(f'index of crc in golden_master: {crc_check_index_list[crc_value]}')
+       #                 try:
+       #                     for (crc, index) in zip(crc_check_list, crc_check_index_list):
+       #                         print(f'crc is: {crc}')
+       #                         print(f'length of crc_check_list: {len(crc_check_list)}')
+       #                         print(f'length of crc_check_index_list: {len(crc_check_index_list)}')
+       #                         #print(f'crc check list crc: {str(crc_check_list[crc_check_index_list[index]]).strip("[]")}')
+       #                         check_crc = crc_check_list[crc_check_index_list[index]] # fails here
+       #                         print(f'check_crc: {check_crc}')
+       #                         mod_check_crc = check_crc[index]
+       #                         print(f'mod_check_crc: {mod_check_crc}')
+       #                         print(f'mod_check_crc type: {type(mod_check_crc)}')
+       #                         print(f'crc from golden master: {check_crc}')
+       #                         print(type(crc_value["activePictureCrc"]))
+       #                         print(type(mod_check_crc))
+       #                         print(repr(crc_value["activePictureCrc"]))
+       #                         print(repr(mod_check_crc))
+       #                         assert crc_value["activePictureCrc"] == mod_check_crc     # this HAS to be correct. both strings, both appearing without quotes, no assertion failure.
+       #                         # log.error(f'TEST FAILED: {crc_value} does not match stored value for {confidence_test_standards}: {pattern}')
+       #                 except TestException as err:
+       #                     log.error(f'An error occurred while checking CRC values: {err}')
+       #         except TestException as listErr:
+       #             log.error(f'An error occured while making crc lists: {listErr}')
+       # except TestException as paraErr:
+       #     log.error(f'An error occurred while setting confidence_test_standards parameters: {paraErr}')
