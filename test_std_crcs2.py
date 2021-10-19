@@ -104,7 +104,7 @@ def load_goldenmaster():
 #    return standards_list
 
 
-#@pytest.fixture(scope='module')
+@pytest.mark.sdi
 def get_std_and_pattern_params(generator_qx, confidence_test_standards):
     """
     Retrive the standard parameters from unit being tested to parametrize tests with.
