@@ -160,8 +160,9 @@ def test_crc_goldenmaster(generator_qx, analyser_qx, confidence_test_standards):
     # confidence_test_standards_list = gen_std_list(generator_qx, std_filter='test')
     # for param in confidence_test_standards:
     pattern_list = gen_pattern_list(generator_qx, confidence_test_standards)
+    gm_standard = golden_master.loc[golden_master['Standard'].apply(lambda x: x == [confidence_test_standards])]
+
     for pattern in pattern_list:
-        crc_count = []
         print(f'checking: {confidence_test_standards[1]}, {confidence_test_standards[2]}, {pattern}')
         generator_qx.generator.set_generator(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
 
@@ -171,13 +172,13 @@ def test_crc_goldenmaster(generator_qx, analyser_qx, confidence_test_standards):
         while qx_settled is False:
             qx_settled = generator_qx.generator.is_generating_standard(confidence_test_standards[1], confidence_test_standards[2], confidence_test_standards[3], pattern)
 
-        crc_count.append(get_crc_count(generator_qx))
         #confidence_test_standards_params = list(confidence_test_standards)
         try:
             # seperate the zips out in to seperate for loops and print out what the values are
-            for count in crc_count:
-                print(f'count: {count}')
-                crc_index = crc_count.index(count)  # i think here is where the index is being set incorrectly.
+
+            # for count in crc_count:
+            #     print(f'count: {count}')
+            #     crc_index = crc_count.index(count)  # i think here is where the index is being set incorrectly.
             for crc_value in analyser_qx.analyser.get_crc_analyser():
                 try:
                     print(f'crc_value: {crc_value["activePictureCrc"]}')
