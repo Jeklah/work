@@ -1,12 +1,9 @@
 """
-A verification tool to check that the standards that are being generated are
-the correct standards. This will be done by storing the APCRC of a generated
-standard on first run of this tool.
-When this tool is run after the golden master has been generated, it will
-check the APCRC of the generated standard with the stored APCRC for that
-standard in the golden master to make sure they are the same. If it is not
-already stored, it will store it (adding new standard) and if it is wrong/
-invalid then it will inform the user.
+A Companion Tool used for maintaining the Golden Master.
+Features:
+    * Adding standards to golden master.
+    * Updating the golden master
+    * Check CRC for a given standard against golden master.
 """
 import os
 import sys
@@ -15,10 +12,10 @@ import click
 import pickle
 import logging
 import pandas as pd
+import datetime as date
 if not sys.warnoptions:
     import warnings
     warnings.simplefilter("ignore")
-from alive_progress import alive_bar # Loading bar library written in pure Python.
 from test_system.factory import make_qx
 from test_system.models.qxseries.operationmode import OperationMode
 from test_system.models.qxseries.io import SDIIOType
@@ -42,6 +39,8 @@ def generator_qx(generator):
     """
     Basic generator_qx setup.
 
+    parameter: generator <string>
+
     * Bouncing Box set to False
     * Output copy set to False
     * Output source set to BNC
@@ -58,14 +57,16 @@ def generator_qx(generator):
 
 def analyser_qx(analyser):
     """
-    Basic analyser_qx setup
+    Basic analyse_qx setup
+
+    parameter: analyser <string>
 
     * Output/input(?) source set to BNC
     """
-    anlyser_qx = make_qx(hostname=analyser)
-    anlyser_qx.io.sdi_output_source = SDIIOType.BNC
-    log.info(f"Standard Verification Analyser {anlyser_qx.hostname} setup complete.")
-    return anlyser_qx
+    analyse_qx = make_qx(hostname=analyser)
+    analyse_qx.io.sdi_output_source = SDIIOType.BNC
+    log.info(f"Standard Verification Analyser {analyse_qx.hostname} setup complete.")
+    return analyse_qx
 
 
 def welcome():
@@ -96,17 +97,22 @@ def menu():
     print()
     if user_choice_num == 5:
         print('Bye!')
-        exit()
+        exit(0)
     print(f'You chose: {user_choice_num}: {actions[user_choice_num-1]}.')
     return user_choice_num
 
 
 def user_input(user_choice_num):
     """
-    Takes the input from the user and returns a list.
+    Takes the input from the user and returns a list and the date the user would like to amend.
     """
     input_std_list_file = click.prompt('Please enter the name of the input file containing the standards, patterns and CRC values.', type=click.STRING)
-    return input_std_list_file
+    if user_choice_num == 1:
+        date = click.prompt('Please enter the date of the records you would like to update, in the form "Sep-16-2021"', type=click.STRING)
+        return date, input_std_list_file
+    elif user_choice_num == 3:
+        date = click.prompt('Please enter the date of the records you would like to check, in the form "Sep-16-2021"', type=click.STRING)
+        return date, input_std_list_file
 
 
 # Setting up filters to select standards.
@@ -114,6 +120,10 @@ def gen_std_list(gen_qx, stds="confidence_test_standards"):
     """
     This is to give the companion the same filters that are used as global fixtures
     in our pytest setup, as well as the decided nightly subset.
+
+    parameters:
+        stds <string> default: confidence_test_standards
+        gen_qx <object>
     """
     if not gen_qx.query_capability(OperationMode.IP_2110):
         if stds == "nightly": # Nightly filter, requirements agreed upon in meeting.
@@ -250,7 +260,7 @@ def total_iterations(gen_qx, standards_list):
     return total
 
 
-def generate_golden_master(gen_qx, anlyser_qx, standards_list):
+def generate_golden_master(gen_qx, analyse_qx, standards_list):
     """
     Main method that generates and writes the golden_master.
     """
@@ -268,11 +278,11 @@ def generate_golden_master(gen_qx, anlyser_qx, standards_list):
                         gen_qx.generator.set_generator(resolution, mapping, gamut, pattern)
                         time.sleep(3)
                         crc_count = set_crc_count(gen_qx)
-                        qx_settled = anlyser_qx.generator.is_generating_standard(resolution, mapping, gamut, pattern)
+                        qx_settled = analyse_qx.generator.is_generating_standard(resolution, mapping, gamut, pattern)
                         while qx_settled is False:
-                            qx_settled = anlyser_qx.generator.is_generating_standard(resolution, mapping, gamut, pattern)
+                            qx_settled = analyse_qx.generator.is_generating_standard(resolution, mapping, gamut, pattern)
                         try:
-                            for crc_value in anlyser_qx.analyser.get_crc_analyser():
+                            for crc_value in analyse_qx.analyser.get_crc_analyser():
                                 try:
                                     print(f'retrieved using qx: {std}, {pattern}, {crc_value["activePictureCrc"].upper()}')
                                     dict_to_df = {}
@@ -291,28 +301,32 @@ def generate_golden_master(gen_qx, anlyser_qx, standards_list):
         log.error(f"An error occurred processing the standard list: {stdErr}")
     try:
         qx_dataframe = pd.DataFrame(qx_crcs)
-        write_dataframe(qx_dataframe)
+        write_dataframe(qx_dataframe, gen_qx)
     except KeyError as pickleErr:
         log.error(f"An error occurred while pickling: {pickleErr}")
 
 
-def unpickle_golden_master():
+def unpickle_golden_master(date):
     """
     Unpickles the pkl file and returns a pandas dataframe.
 
     This is to keep the code as DRY as possible.
     """
-    unpickled_crcs = pd.read_pickle('./golden_master-confidence.pkl')
+    # @Arthur fast/test/whatever should be selected and changed
+    unpickled_crcs = pd.read_pickle(f'./golden_master-fast-{date}.pkl')
     return unpickled_crcs
 
 
-def write_dataframe(dataframe):
+def write_dataframe(dataframe, gen_qx):
     """
     Writes the given dataframe to disc.
 
     This is to keep the code as DRY as possible.
     """
-    records = open("golden_master-confidence.pkl", "wb")
+    today = date.date.today().strftime('%m-%b-%Y')
+    for key, value in zip(gen_qx.about.keys(), gen_qx.about.values()):
+        dataframe.attrs[key] = value
+    records = open(f"golden_master-fast-{today}.pkl", "wb")
     pickler = pickle.Pickler(records)
     pickler.dump(dataframe)
     records.close()
@@ -370,7 +384,7 @@ def add_standard(input_std_pattern_crc_list, golden_master):
         print(f'Added standard: {new_std}')
 
 
-def check_crc(gen_qx, anlyser_qx, check_pattern_crc_list):
+def check_crc(gen_qx, analyse_qx, check_pattern_crc_list):
     """
     Checks (gets and prints) the CRCs of patterns for standards given in a list.
     """
@@ -400,7 +414,7 @@ def check_crc(gen_qx, anlyser_qx, check_pattern_crc_list):
             time.sleep(2)
 
             while no_crc == 0:
-                no_crc = anlyser_qx.analyser.get_crc_analyser()[0]['activePictureCrc']
+                no_crc = analyse_qx.analyser.get_crc_analyser()[0]['activePictureCrc']
             crc_count = set_crc_count(gen_qx)
 
             for index in range(crc_count):
@@ -411,14 +425,14 @@ def check_crc(gen_qx, anlyser_qx, check_pattern_crc_list):
                     crc_list.append(golden_master[(golden_master['Standard'] == std) &
                                                   (golden_master['Pattern'] == check_pattern)]['CrcValue'][crc_index_list[index]])
                     print(f'The CRCs we have on record for {std} using {check_pattern} are {crc_list[crc_index_list[index]]}')
-                    print(f"The CRCs the Qx/QxL is reading are {anlyser_qx.analyser.get_crc_analyser()[index]['activePictureCrc']}")
+                    print(f"The CRCs the Qx/QxL is reading are {analyse_qx.analyser.get_crc_analyser()[index]['activePictureCrc']}")
                 else:
                         crc_index = golden_master[(golden_master['Standard'] == std) &
                                                   (golden_master['Pattern'] == check_pattern)]['CrcValue'].index[0]
                         std_crc = golden_master[(golden_master['Standard'] == std) &
                                                 (golden_master['Pattern'] == check_pattern)]['CrcValue'][crc_index]
                         print(f'The CRC we have on record for {std} using {check_pattern} is {std_crc}')
-                        print(f"The CRC the Qx/QxL is reading is {anlyser_qx.analyser.get_crc_analyser()[index]['activePictureCrc']}")
+                        print(f"The CRC the Qx/QxL is reading is {analyse_qx.analyser.get_crc_analyser()[index]['activePictureCrc']}")
 
 
 def update_crc(gen_qx, update_crc_list):
@@ -470,7 +484,7 @@ def main():
     Entry point for the program.
     """
     gen_qx = generator_qx(generator)
-    anlyser_qx = analyser_qx(analyser)
+    analyse_qx = analyser_qx(analyser)
     welcome()
     user_action = menu()
     if user_action == 1:
@@ -483,12 +497,12 @@ def main():
     elif user_action == 3:
         check_crc_list_file = user_input(user_action)
         golden_master = unpickle_golden_master()
-        check_crc(gen_qx, anlyser_qx, check_crc_list_file)
+        check_crc(gen_qx, analyse_qx, check_crc_list_file)
     elif user_action == 4:
         print('Generating Golden Master...')
         print('This may take some time.\n')
         standards_list = gen_std_list(gen_qx, stds='confidence_test_standards')
-        generate_golden_master(gen_qx, anlyser_qx, standards_list)
+        generate_golden_master(gen_qx, analyse_qx, standards_list)
 
 
 if __name__ == "__main__":
