@@ -181,17 +181,3 @@ def test_crcs(confidence_test_standards):
        # assert recent_results[(recent_results['Pattern'] == patt) & \
        #                       (recent_results[recent_results['CrcValue'] == crc]).equals(
        #                        todays_results[(todays_results['Pattern'] == patt) & (todays_results[(todays_results['CrcValue'] == crc)])])]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
