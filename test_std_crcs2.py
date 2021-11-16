@@ -1,5 +1,6 @@
 """
 A suite of tests to check the generated standards match the CRCs we have stored on file.
+Keeping for concise use of try and retry.
 """
 import os
 import pdb
@@ -59,49 +60,6 @@ def load_goldenmaster():
     """
     golden_master = pd.read_pickle('./crc_dataframe1.pkl')
     return golden_master
-
-
-#def gen_std_list(generator_qx, stds='fast'): # Adding this method to generate list of standards from the unit
-#    if stds == 'nightly': # Nightly filter, requirements agreed upon in the meeting.
-#        standards_list = generator_qx.generator.get_matching_standards(
-#            [1.5],
-#            r"720.*|1920.*|2048.*|3840.*|4096.*",
-#            r"RGB.*|YCbCr:422:10|YCbCr:422:12|YCbCr:444:.*",
-#            r".*709|.*2020|HLG.*|PQ.*}S-Log3.*",
-#        )
-#    elif stds == 'test':
-#        standards_list = generator_qx.generator.get_matching_standards(
-#            [1.5],
-#            r"1920.*",
-#            r"YCbCr:422:10",
-#            r".*709"
-#        )
-#    elif stds == 'fast': # This filter was added to speed up development. It returns 5 standards.
-#        standards_list = generator_qx.generator.get_matching_standards(
-#            [1.5, 3.0],
-#            r"(1920x1080|1280x720)[i|p]50",
-#            r"YCbCr:422:10",
-#            r".Rec.709"
-#        )
-#    elif stds == 'confidence_test_standards': # This is the same filter as found in conftest.py
-#        standards_list = generator_qx.generator.get_matching_standards(
-#            [1.5, 3.0, 6.0, 12.0],
-#            r"\d+x\d+p\d+",
-#            r"YCbCr:422:10",
-#            r".*709"
-#        )
-#    elif stds == 'all':
-#        all_stds = generator_qx.generator.get_standards()
-#        standards_list = [
-#            [data_rate, resolution, colour_map, gamut]
-#            for data_rate in all_stds
-#            for resolution in all_stds[data_rate]
-#            for colour_map in all_stds[data_rate][resolution]
-#            for gamut in all_stds[data_rate][resolution][colour_map]
-#        ]
-#    else:
-#        print('stds filter was not set')
-#    return standards_list
 
 
 @pytest.mark.sdi
