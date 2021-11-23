@@ -15,6 +15,7 @@ import time
 import pytest
 import logging
 import pandas as pd
+import datetime as date
 if not sys.warnoptions:
     import warnings
     warnings.simplefilter('ignore')
@@ -76,6 +77,10 @@ def analyser_unit(test_analyser_hostname):
 
 @pytest.fixture(scope='module')
 def store_test_outcome(env_globals):
+    """
+    Stores the final results of the test after teardown.
+    Note yield being the first line of this method.
+    """
     yield
     with open('test_output_file', 'w') as fileName:
         for test_output in test_output_results:
@@ -115,15 +120,23 @@ def load_standard_file(input_file):
 @pytest.fixture(scope='module')
 def golden_master():
     """
-    This loads the golden_master file.
+    This reads the golden master file and returns a dataframe.
     """
+    today = date.date.today().strftime('%m-%b-%Y')
+    today_split = today.split('-')
+    day = today_split[0]
+    month = today_split[1]
+    year = today_split[2]
     # @Arthur crc_dataframe should/can be renamed to reflect the appropriate subset of standards
     # i.e crc_dataframe1.pkl is confidence_test_standards
+    #return pd.read_pickle(f'./golden_master-fast-{day}-{month}-{year}.pkl')
     return pd.read_pickle('./crc_dataframe1.pkl')
-
 
 @pytest.fixture(scope='module')
 def env_globals():
+    """
+    Defines the globals used for storing the test result after teardown.
+    """
     yield
     global test_output_results
     global test_passed
@@ -135,6 +148,9 @@ def env_globals():
 @pytest.mark.sdi_stress
 @pytest.mark.timeout(6000, method='thread')
 def test_crcs_all_standards(all_standards, generator_unit, analyser_unit, env_globals, golden_master):
+    """
+    Wrapper for the test to use the 'all_standards' global fixture.
+    """
     generator_unit.request_capability(OperationMode.SDI_STRESS)
     analyser_unit.request_capability(OperationMode.SDI_STRESS)
     _test_crcs_no_assert(generator_unit, analyser_unit, env_globals, all_standards, golden_master)
@@ -144,6 +160,9 @@ def test_crcs_all_standards(all_standards, generator_unit, analyser_unit, env_gl
 @pytest.mark.sdi_stress
 @pytest.mark.timeout(600, method='thread')
 def test_crcs_confidence(confidence_test_standards, generator_unit, analyser_unit, env_globals, golden_master):
+    """
+    Wrapper for the test to use the 'confidence_test_standards' global fixture.
+    """
     generator_unit.request_capability(OperationMode.SDI_STRESS)
     analyser_unit.request_capability(OperationMode.SDI_STRESS)
     _test_crcs_no_assert(generator_unit, analyser_unit, env_globals, confidence_test_standards, golden_master)
@@ -153,6 +172,9 @@ def test_crcs_confidence(confidence_test_standards, generator_unit, analyser_uni
 @pytest.mark.sdi_stress
 @pytest.mark.timeout(600, method='thread')
 def test_crcs_smoke(smoke_test_standards, generator_unit, analyser_unit, env_globals, golden_master):
+    """
+    Wrapper for the test to use the 'smoke_test_standards' global fixture.
+    """
     generator_unit.request_capability(OperationMode.SDI_STRESS)
     analyser_unit.request_capability(OperationMode.SDI_STRESS)
     _test_crcs_no_assert(generator_unit, analyser_unit, env_globals, smoke_test_standards, golden_master)
@@ -162,6 +184,9 @@ def test_crcs_smoke(smoke_test_standards, generator_unit, analyser_unit, env_glo
 @pytest.mark.sdi_stress
 @pytest.mark.timeout(6000, method='thread')
 def test_crcs_core(core_test_standards, generator_unit, analyser_unit, env_globals, golden_master):
+    """
+    Wrapper for the test to use the 'core_test_standards' global fixture.
+    """
     generator_unit.request_capability(OperationMode.SDI_STRESS)
     analyser_unit.request_capability(OperationMode.SDI_STRESS)
     _test_crcs_no_assert(generator_unit, analyser_unit, env_globals, core_test_standards, golden_master)
@@ -234,4 +259,3 @@ def _test_crcs_no_assert(generator_qx, analyser_qx, env_globals, standards_list,
                     print(test_passed, file=errWriter)
 
     assert test_passed
-
