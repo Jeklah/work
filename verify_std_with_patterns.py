@@ -85,7 +85,7 @@ def menu():
                 'Update Standard',
                 'Add Standard',
                 'Check Standard CRC',
-                'Generate Golden Master',
+                'Generate CRC Records',
                 'Exit'
                ]
     print('Please choose what you would like to do from the list below.')
@@ -127,12 +127,28 @@ def gen_std_list(gen_qx, stds="confidence_test_standards"):
     """
     if not gen_qx.query_capability(OperationMode.IP_2110):
         if stds == "nightly": # Nightly filter, requirements agreed upon in meeting.
-            standards_list = gen_qx.generator.get_matching_standards(
-                [1.5],
-                r"720.*|1920.*|2048.*|3840.*|4096.*",
-                r"RGB.*|YCbCr:422:10|YCbCr:422:12|YCbCr:444:.*",
-                r".*709|.*2020|HLG.*|PQ.*|S-Log3.*",
-            )
+            standards_list = [
+                              (1.5,'1280x720p50','YCbCr:422:10','1.5G_Rec.709'),
+                              (1.5,'1920x1080p23.98','YCbCr:422:10','1.5G_Rec.709'),
+                              (1.5,'2048x1080p23.98','YCbCr:422:10','1.5G_Rec.709'),
+                              (1.5,'3840x2160p25','YCbCr:422:10','QL_1.5G_SQ_S-Log3_Rec.2020'),
+                              (1.5,'4096x2160p25','YCbCr:422:10','QL_1.5G_SQ_Rec.709'),
+                              (1.5,'1920x1080i60','RGB:444:10','DL_1.5G_Rec.709'),
+                              (1.5,'1920x1080i50','RGB:444:12','DL_1.5G_HLG_Rec.2020'),
+                              (1.5,'1920x1080psf30','YCbCr:422:12','DL_1.5G_HLG_Rec.2020'),
+                              (1.5,'1920x1080i60','RGBA:4444:10','DL_1.5G_Rec.2020'),
+                              (1.5,'2048x1080p30','YCbCrA:4224:12','DL_1.5G_S-Log3_Rec.2020'),
+                              (1.5,'1920x1080i60','YCbCrA:4444:10','DL_1.5G_Rec.2020'),
+                              (1.5,'4096x2160p30','YCbCr:422:10','QL_1.5G_SQ_PQ_Rec.2020'),
+                              (1.5,'1920x1080p25','YCbCr:422:10','1.5G_S-Log3_Rec.2020'),
+                              ]
+
+            #gen_qx.generator.get_matching_standards(
+                #[1.5],
+                #r"720.*|1920.*|2048.*|3840.*|4096.*",
+                #r"RGB.*|YCbCr:422:10|YCbCr:422:12|YCbCr:444:.*",
+                #r".*709|.*2020|HLG.*|PQ.*|S-Log3.*",
+            #)
         elif stds == "test": # Returns smaller subset than 'fast', quicker testing.
             standards_list = gen_qx.generator.get_matching_standards(
                 [1.5], r"1920.*", r"YCbCr:422:10", r".*709"
@@ -159,7 +175,7 @@ def gen_std_list(gen_qx, stds="confidence_test_standards"):
             ]
     else:
         print(f"{gen_qx.hostname} is current in IP 2110 mode. Please switch to SDI mode.")
-    return standards_list
+    return standards_list, stds
 
 
 def check_standards(gen_qx, standards_list):
@@ -260,9 +276,9 @@ def total_iterations(gen_qx, standards_list):
     return total
 
 
-def generate_golden_master(gen_qx, analyse_qx, standards_list):
+def generate_crcRecord(gen_qx, analyse_qx, standards_list, std_filter):
     """
-    Main method that generates and writes the golden_master.
+    Main method that generates and writes the crcRecord.
     """
     qx_crcs = []
     qx_settled = False
@@ -286,7 +302,7 @@ def generate_golden_master(gen_qx, analyse_qx, standards_list):
                                 try:
                                     print(f'retrieved using qx: {std}, {pattern}, {crc_value["activePictureCrc"].upper()}')
                                     dict_to_df = {}
-                                    dict_to_df.update(Standard=eval(f'{std}'), Pattern=eval(f'str("{pattern}")'), CrcValue=eval(f'str("{crc_value["activePictureCrc"]}")'), CrcCount=eval(f'{crc_count}'))
+                                    dict_to_df.update(Standard=f'{std}', Pattern=f'str("{pattern}")', CrcValue=f'str("{crc_value["activePictureCrc"]}")', CrcCount=f'{crc_count}')
                                     qx_crcs.append(dict_to_df)
                                     # bar()
                                 except KeyError as dataFrameErr:
@@ -301,32 +317,35 @@ def generate_golden_master(gen_qx, analyse_qx, standards_list):
         log.error(f"An error occurred processing the standard list: {stdErr}")
     try:
         qx_dataframe = pd.DataFrame(qx_crcs)
-        write_dataframe(qx_dataframe, gen_qx)
+        write_dataframe(qx_dataframe, std_filter, gen_qx)
     except KeyError as pickleErr:
         log.error(f"An error occurred while pickling: {pickleErr}")
 
 
-def unpickle_golden_master(date):
+def unpickle_crcRecord(version):
     """
     Unpickles the pkl file and returns a pandas dataframe.
 
     This is to keep the code as DRY as possible.
     """
     # @Arthur fast/test/whatever should be selected and changed
-    unpickled_crcs = pd.read_pickle(f'./golden_master-fast-{date}.pkl')
+    unpickled_crcs = pd.read_pickle(f'./crcRecord-confidence-{version}.pkl')
     return unpickled_crcs
 
 
-def write_dataframe(dataframe, gen_qx):
+def write_dataframe(dataframe, std_filter, gen_qx):
     """
     Writes the given dataframe to disc.
 
     This is to keep the code as DRY as possible.
     """
-    today = date.date.today().strftime('%m-%b-%Y')
+    # code for date. Changing to version number of qx so CRC Logger doesn't have to be run
+    # as often.
+    # today = date.date.today().strftime('%m-%b-%Y')
+    version = gen_qx.about['Software_version']
     for key, value in zip(gen_qx.about.keys(), gen_qx.about.values()):
         dataframe.attrs[key] = value
-    records = open(f"golden_master-fast-{today}.pkl", "wb")
+    records = open(f"crcRecord-{std_filter}-{version}.pkl", "wb")
     pickler = pickle.Pickler(records)
     pickler.dump(dataframe)
     records.close()
@@ -353,7 +372,7 @@ def read_input_file(input_std_pattern_crc_list):
     return input_stds
 
 
-def add_standard(input_std_pattern_crc_list, golden_master):
+def add_standard(input_std_pattern_crc_list, crcRecord):
     """
     Adds a standard from a given list.
 
@@ -367,7 +386,7 @@ def add_standard(input_std_pattern_crc_list, golden_master):
 
     A generate_pattern_crcs() method would be a good addition for future expansion of this tool
     to allow quickly filling out the N/a information with actual values without generating the
-    entire golden_master.
+    entire crcRecord.
     """
     adding_stds = read_input_file(input_std_pattern_crc_list)
 
@@ -379,8 +398,8 @@ def add_standard(input_std_pattern_crc_list, golden_master):
         # Only updating the golden master with a standard field, as the test_patterns that are relevant for that standard will
         # be generated on the qx, as will the CRC values for the test patterns.
         dict_to_df.update(Standard=f'{new_std}', Pattern='N/a', CrcValue='N/a', CrcCount=0)
-        golden_master.append(dict_to_df, ignore_index=True)
-        write_dataframe(golden_master)
+        crcRecord.append(dict_to_df, ignore_index=True)
+        write_dataframe(crcRecord)
         print(f'Added standard: {new_std}')
 
 
@@ -394,7 +413,8 @@ def check_crc(gen_qx, analyse_qx, check_pattern_crc_list):
     crc_count = 0
     no_crc = 0
     qx_settled = False
-    golden_master = unpickle_golden_master()
+    version = gen_qx.about['Software_version']
+    crcRecord = unpickle_crcRecord(version)
 
     check_std_crcs = read_input_file(check_pattern_crc_list)
 
@@ -420,17 +440,17 @@ def check_crc(gen_qx, analyse_qx, check_pattern_crc_list):
             for index in range(crc_count):
                 if crc_count > 1:
                     click.echo(f'This standard and pattern has {crc_count} CRC values.')
-                    crc_index_list.append(golden_master[(golden_master['Standard'] == std) &
-                                                        (golden_master['Pattern'] == check_pattern)]['CrcValue'].index[index])
-                    crc_list.append(golden_master[(golden_master['Standard'] == std) &
-                                                  (golden_master['Pattern'] == check_pattern)]['CrcValue'][crc_index_list[index]])
+                    crc_index_list.append(crcRecord[(crcRecord['Standard'] == std) &
+                                                        (crcRecord['Pattern'] == check_pattern)]['CrcValue'].index[index])
+                    crc_list.append(crcRecord[(crcRecord['Standard'] == std) &
+                                                  (crcRecord['Pattern'] == check_pattern)]['CrcValue'][crc_index_list[index]])
                     print(f'The CRCs we have on record for {std} using {check_pattern} are {crc_list[crc_index_list[index]]}')
                     print(f"The CRCs the Qx/QxL is reading are {analyse_qx.analyser.get_crc_analyser()[index]['activePictureCrc']}")
                 else:
-                        crc_index = golden_master[(golden_master['Standard'] == std) &
-                                                  (golden_master['Pattern'] == check_pattern)]['CrcValue'].index[0]
-                        std_crc = golden_master[(golden_master['Standard'] == std) &
-                                                (golden_master['Pattern'] == check_pattern)]['CrcValue'][crc_index]
+                        crc_index = crcRecord[(crcRecord['Standard'] == std) &
+                                                  (crcRecord['Pattern'] == check_pattern)]['CrcValue'].index[0]
+                        std_crc = crcRecord[(crcRecord['Standard'] == std) &
+                                                (crcRecord['Pattern'] == check_pattern)]['CrcValue'][crc_index]
                         print(f'The CRC we have on record for {std} using {check_pattern} is {std_crc}')
                         print(f"The CRC the Qx/QxL is reading is {analyse_qx.analyser.get_crc_analyser()[index]['activePictureCrc']}")
 
@@ -443,7 +463,8 @@ def update_crc(gen_qx, update_crc_list):
     crc_list = []
     crc_count = 0
     update_list = []
-    golden_master = unpickle_golden_master()
+    version = gen_qx.about['Software_version']
+    crcRecord = unpickle_crcRecord(version)
 
     update_list = read_input_file(update_crc_list)
 
@@ -456,26 +477,26 @@ def update_crc(gen_qx, update_crc_list):
             click.echo(f'This standard has {crc_count} CRC values.')
             new_crc_index = click.prompt('Please choose which CRC you would like to edit: ', type=click.INT)
             for index in range(crc_count):
-                crc_index_list.append(golden_master[(golden_master['Standard'] == std) &
-                                                    (golden_master['Pattern'] == update_pattern)]['CrcValue'].index[index])
-                crc_list.append(golden_master[(golden_master['Standard'] == std) &
-                                              (golden_master['Pattern'] == update_pattern)]['CrcValue'][crc_index_list[index]])
+                crc_index_list.append(crcRecord[(crcRecord['Standard'] == std) &
+                                                    (crcRecord['Pattern'] == update_pattern)]['CrcValue'].index[index])
+                crc_list.append(crcRecord[(crcRecord['Standard'] == std) &
+                                              (crcRecord['Pattern'] == update_pattern)]['CrcValue'][crc_index_list[index]])
                 std_ptn_index = crc_index_list[new_crc_index] # Pattern and CRC will have the same index
                 click.echo(f'{index}: {crc_list[index]}')
         else:
-            crc_index = golden_master[(golden_master['Standard'] == std) &
-                                      (golden_master['Pattern'] == update_pattern)]['CrcValue'].index[0]
-            std_crc = golden_master[(golden_master['Standard'] == std) &
-                                    (golden_master['Pattern'] == update_pattern)]['CrcValue'][crc_index]
-            std_ptn_index = golden_master[(golden_master['Standard'] == std) &
-                                          (golden_master['Pattern'] == update_pattern)]['Pattern'].index[0]
+            crc_index = crcRecord[(crcRecord['Standard'] == std) &
+                                      (crcRecord['Pattern'] == update_pattern)]['CrcValue'].index[0]
+            std_crc = crcRecord[(crcRecord['Standard'] == std) &
+                                    (crcRecord['Pattern'] == update_pattern)]['CrcValue'][crc_index]
+            std_ptn_index = crcRecord[(crcRecord['Standard'] == std) &
+                                          (crcRecord['Pattern'] == update_pattern)]['Pattern'].index[0]
 
         tmp_df = pd.DataFrame({'CrcValue': new_crc}, index=[std_ptn_index])
-        golden_master.update(tmp_df)
+        crcRecord.update(tmp_df)
         print(f'CRC before update: {std_crc}')
-        write_dataframe(golden_master)
-        updated_crc = golden_master[(golden_master['Standard'] == std) &
-                                    (golden_master['Pattern'] == update_pattern)]
+        write_dataframe(crcRecord)
+        updated_crc = crcRecord[(crcRecord['Standard'] == std) &
+                                    (crcRecord['Pattern'] == update_pattern)]
         print(f'Updated CRC: {updated_crc}.')
 
 
@@ -487,22 +508,23 @@ def main():
     analyse_qx = analyser_qx(analyser)
     welcome()
     user_action = menu()
+    version = gen_qx.about['Software_version']
     if user_action == 1:
         update_crc_list = user_input(user_action)
         update_crc(gen_qx, update_crc_list)
     elif user_action == 2:
         add_std_list_file = user_input(user_action)
-        golden_master = unpickle_golden_master()
-        add_standard(add_std_list_file, golden_master)
+        crcRecord = unpickle_crcRecord(version)
+        add_standard(add_std_list_file, crcRecord)
     elif user_action == 3:
         check_crc_list_file = user_input(user_action)
-        golden_master = unpickle_golden_master()
+        crcRecord = unpickle_crcRecord(version)
         check_crc(gen_qx, analyse_qx, check_crc_list_file)
     elif user_action == 4:
-        print('Generating Golden Master...')
+        print('Generating CRC Records...')
         print('This may take some time.\n')
-        standards_list = gen_std_list(gen_qx, stds='confidence_test_standards')
-        generate_golden_master(gen_qx, analyse_qx, standards_list)
+        standards_list, std_filter = gen_std_list(gen_qx, stds='nightly')
+        generate_crcRecord(gen_qx, analyse_qx, standards_list, std_filter)
 
 
 if __name__ == "__main__":

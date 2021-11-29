@@ -4,14 +4,11 @@ in the past 2 releases/versions.
 
 The results file is stored in the current directory.
 """
-import pdb
-import os.path
 import sys
-import time
 import pytest
 import logging
+import os.path
 import pandas as pd
-import datetime as date
 if not sys.warnoptions:
     import warnings
     warnings.simplefilter('ignore')
@@ -42,7 +39,7 @@ tests_output_results = [] # Used to store the result of the test
 
 # Setting up the test environment
 @pytest.fixture(scope='module')
-def generator_unit(test_generator_hostname):
+def generator_qx(test_generator_hostname):
     """
     Basic setup for generating standard CRCs:
         * Bouncing box set to False
@@ -60,7 +57,7 @@ def generator_unit(test_generator_hostname):
 
 
 @pytest.fixture(scope='module')
-def analyser_unit(test_analyser_hostname):
+def analyser_qx(test_analyser_hostname):
     """
     Basic test set up for analyser:
         * Set all SDI output/inputs to BNC
@@ -118,36 +115,46 @@ def load_standard_file(input_file):
     return loaded_stds
 
 
-# @pytest.fixture(scope='module')
-def read_last_test_results():
+def get_past_versions():
+    """
+    Yield past versions to test against.
+    """
+    versions = [
+               "4.3.1",
+               "4.4.0",
+               "4.5.0",
+               ]
+    for vers in versions:
+        yield vers
+
+
+@pytest.mark.parametrize('past_vers', get_past_versions())
+def read_last_test_results(generator_qx, past_vers):
     """
     This reads the last known test results.
     """
-    today = date.date.fromordinal(date.date.today().toordinal() -1).strftime('%m-%b-%Y')
-    today_split = today.split('-')
-    day = today_split[0]
-    month = today_split[1]
-    year = today_split[2]
-    yesterday = int(day) - 1
-    if os.path.exists(f'./golden_master-confidence-{yesterday}-{month}-{year}.pkl'):
-        return pd.read_pickle(f'./golden_master-confidence-{day}-{month}-{year}.pkl'), \
-               pd.read_pickle(f'./golden_master-confidence-{yesterday}-{month}-{year}.pkl')
-    else:
-        return pd.read_pickle(f'./golden_master-confidence-{day}-{month}-{year}.pkl'), \
-               pd.read_pickle(f'./golden_master-fast.pkl')
+    # today = date.date.fromordinal(date.date.today().toordinal() -1).strftime('%m-%b-%Y')
+    # today_split = today.split('-')
+    # day = today_split[0]
+    # month = today_split[1]
+    # year = today_split[2]
+    # yesterday = int(day) - 1
+    curr_vers = generator_qx.about['Software_version']
+    try:
+        if os.path.exists(f'./crcRecord-nightly-{past_vers}.pkl'):
+            return pd.read_pickle(f'./crcRecord-nightly-{curr_vers}.pkl'), curr_vers, \
+                   pd.read_pickle(f'./crcRecord-nightly-{past_vers}.pkl')
+        else:
+            return pd.read_pickle(f'./crcRecord-nightly-{curr_vers}.pkl'), \
+                   pd.read_pickle('./crc_corr_check.pkl')
+    except FileNotFoundError as ferr:
+        log.error(f'The file for a previous version could not be found. {ferr}')
 
 
-def test_crcs(confidence_test_standards):
+@pytest.mark.parametrize('past_vers', get_past_versions())
+def test_crcs(generator_qx, confidence_test_standards, past_vers):
     std = confidence_test_standards
-    todays_results, recent_results = read_last_test_results()
-
-    # for std, pattern, crc in zip(todays_results['Standard'], todays_results['Pattern'], todays_results['CrcValue']):
-    #     assert recent_results[(recent_results['Standard'] == std) & (recent_results['Pattern'] == pattern) & (recent_results['CrcValue'] == crc)].equals(
-    #            todays_results[(todays_results['Standard'] == std) & (todays_results['Pattern'] == pattern) & (todays_results['CrcValue'] == crc)]
-    #     )
-
-    # print(std)
-    # standard_df = todays_results[todays_results['Standard'] == std]
+    todays_results, curr_vers, recent_results = read_last_test_results(generator_qx, past_vers)
     standard_df = todays_results.loc[todays_results['Standard'] == std]
 
     if len(standard_df) == 0:
@@ -164,7 +171,7 @@ def test_crcs(confidence_test_standards):
     # they will be in the same order as the test pattern list, so they could use the same index.
     crc_list = standard_df['CrcValue'].values.tolist()
 
-    print(f'Checking standard: {std}')
+    print(f'Checking standard: {std}, versions: {curr_vers} against {past_vers} ')
     pattern_index = 0
     for patt, crc in zip(test_patterns, crc_list):
         assert recent_results[(recent_results['Standard'] == std)].equals(todays_results[(todays_results['Standard'] == std)])
@@ -178,6 +185,4 @@ def test_crcs(confidence_test_standards):
 
         assert todays_test_pattern_crc_df.equals(test_pattern_crc_df)
 
-       # assert recent_results[(recent_results['Pattern'] == patt) & \
-       #                       (recent_results[recent_results['CrcValue'] == crc]).equals(
-       #                        todays_results[(todays_results['Pattern'] == patt) & (todays_results[(todays_results['CrcValue'] == crc)])])]
+
