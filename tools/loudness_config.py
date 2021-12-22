@@ -51,7 +51,7 @@ payload = json.dumps({
             }
         }
     },
-    "control": "stop",
+    "control": "start",
     "logDuration_mins": 30,
     "logFilename": "loudness",
     "logLifetime_days": 7,
