@@ -8,11 +8,11 @@ Features:
 import os
 import sys
 import time
+import json
 import click
 import pickle
 import logging
 import pandas as pd
-import datetime as date
 if not sys.warnoptions:
     import warnings
     warnings.simplefilter("ignore")
@@ -39,7 +39,7 @@ def generator_qx(generator):
     """
     Basic generator_qx setup.
 
-    parameter: generator <string>
+    parameter: generator string
 
     * Bouncing Box set to False
     * Output copy set to False
@@ -59,7 +59,7 @@ def analyser_qx(analyser):
     """
     Basic analyse_qx setup
 
-    parameter: analyser <string>
+    parameter: analyser string
 
     * Output/input(?) source set to BNC
     """
@@ -105,14 +105,21 @@ def menu():
 def user_input(user_choice_num):
     """
     Takes the input from the user and returns a list and the date the user would like to amend.
+
+    parameters:
+        user_choice_num string
+
+    returns:
+        search_date date
+        input_std_list_file list
     """
     input_std_list_file = click.prompt('Please enter the name of the input file containing the standards, patterns and CRC values.', type=click.STRING)
     if user_choice_num == 1:
-        date = click.prompt('Please enter the date of the records you would like to update, in the form "Sep-16-2021"', type=click.STRING)
-        return date, input_std_list_file
+        search_date = click.prompt('Please enter the date of the records you would like to update, in the form "Sep-16-2021"', type=click.STRING)
+        return search_date, input_std_list_file
     elif user_choice_num == 3:
-        date = click.prompt('Please enter the date of the records you would like to check, in the form "Sep-16-2021"', type=click.STRING)
-        return date, input_std_list_file
+        search_date = click.prompt('Please enter the date of the records you would like to check, in the form "Sep-16-2021"', type=click.STRING)
+        return search_date, input_std_list_file
 
 
 # Setting up filters to select standards.
@@ -122,33 +129,30 @@ def gen_std_list(gen_qx, stds="confidence_test_standards"):
     in our pytest setup, as well as the decided nightly subset.
 
     parameters:
-        stds <string> default: confidence_test_standards
-        gen_qx <object>
+        stds string default: confidence_test_standards
+        gen_qx object
+
+    returns:
+        standards_list list
+        stds string
     """
     if not gen_qx.query_capability(OperationMode.IP_2110):
         if stds == "nightly": # Nightly filter, requirements agreed upon in meeting.
             standards_list = [
-                              (1.5,'1280x720p50','YCbCr:422:10','1.5G_Rec.709'),
-                              (1.5,'1920x1080p23.98','YCbCr:422:10','1.5G_Rec.709'),
-                              (1.5,'2048x1080p23.98','YCbCr:422:10','1.5G_Rec.709'),
-                              (1.5,'3840x2160p25','YCbCr:422:10','QL_1.5G_SQ_S-Log3_Rec.2020'),
-                              (1.5,'4096x2160p25','YCbCr:422:10','QL_1.5G_SQ_Rec.709'),
-                              (1.5,'1920x1080i60','RGB:444:10','DL_1.5G_Rec.709'),
-                              (1.5,'1920x1080i50','RGB:444:12','DL_1.5G_HLG_Rec.2020'),
-                              (1.5,'1920x1080psf30','YCbCr:422:12','DL_1.5G_HLG_Rec.2020'),
-                              (1.5,'1920x1080i60','RGBA:4444:10','DL_1.5G_Rec.2020'),
-                              (1.5,'2048x1080p30','YCbCrA:4224:12','DL_1.5G_S-Log3_Rec.2020'),
-                              (1.5,'1920x1080i60','YCbCrA:4444:10','DL_1.5G_Rec.2020'),
-                              (1.5,'4096x2160p30','YCbCr:422:10','QL_1.5G_SQ_PQ_Rec.2020'),
-                              (1.5,'1920x1080p25','YCbCr:422:10','1.5G_S-Log3_Rec.2020'),
+                              (1.5, '1280x720p50', 'YCbCr:422:10', '1.5G_Rec.709'),
+                              (1.5, '1920x1080p23.98', 'YCbCr:422:10', '1.5G_Rec.709'),
+                              (1.5, '2048x1080p23.98', 'YCbCr:422:10', '1.5G_Rec.709'),
+                              (1.5, '3840x2160p25', 'YCbCr:422:10', 'QL_1.5G_SQ_S-Log3_Rec.2020'),
+                              (1.5, '4096x2160p25', 'YCbCr:422:10', 'QL_1.5G_SQ_Rec.709'),
+                              (1.5, '1920x1080i60', 'RGB:444:10', 'DL_1.5G_Rec.709'),
+                              (1.5, '1920x1080i50', 'RGB:444:12', 'DL_1.5G_HLG_Rec.2020'),
+                              (1.5, '1920x1080psf30', 'YCbCr:422:12', 'DL_1.5G_HLG_Rec.2020'),
+                              (1.5, '1920x1080i60', 'RGBA:4444:10', 'DL_1.5G_Rec.2020'),
+                              (1.5, '2048x1080p30', 'YCbCrA:4224:12', 'DL_1.5G_S-Log3_Rec.2020'),
+                              (1.5, '1920x1080i60', 'YCbCrA:4444:10', 'DL_1.5G_Rec.2020'),
+                              (1.5, '4096x2160p30', 'YCbCr:422:10', 'QL_1.5G_SQ_PQ_Rec.2020'),
+                              (1.5, '1920x1080p25', 'YCbCr:422:10', '1.5G_S-Log3_Rec.2020'),
                               ]
-
-            #gen_qx.generator.get_matching_standards(
-                #[1.5],
-                #r"720.*|1920.*|2048.*|3840.*|4096.*",
-                #r"RGB.*|YCbCr:422:10|YCbCr:422:12|YCbCr:444:.*",
-                #r".*709|.*2020|HLG.*|PQ.*|S-Log3.*",
-            #)
         elif stds == "test": # Returns smaller subset than 'fast', quicker testing.
             standards_list = gen_qx.generator.get_matching_standards(
                 [1.5], r"1920.*", r"YCbCr:422:10", r".*709"
@@ -181,6 +185,10 @@ def gen_std_list(gen_qx, stds="confidence_test_standards"):
 def check_standards(gen_qx, standards_list):
     """
     Debugging method. Purely used to check the standards list.
+
+    parameters:
+        gen_qx object
+        standards_list list
     """
     for std in standards_list:
         print(type(std))
@@ -189,6 +197,10 @@ def check_standards(gen_qx, standards_list):
 def check_patterns(gen_qx, standards_list):
     """
     Debugging method. Purely used to check the pattern list.
+
+    parameters:
+        gen_qx object
+        standards_list list
 
     std[1] = resolution
     std[2] = colour mapping
@@ -202,6 +214,13 @@ def check_patterns(gen_qx, standards_list):
 def get_patterns(gen_qx, std):
     """
     Retrieves all supported patterns for a given standard.
+
+    parameters:
+        gen_qx object
+        standards_list list
+
+    returns:
+        test_patterns list
 
     std[1] = resolution
     std[2] = colour mapping
@@ -218,6 +237,9 @@ def get_patterns(gen_qx, std):
 def get_subimages(gen_qx):
     """
     Gets the subimages for a standard, based on it's level, data_rate and links.
+
+    parameters:
+        gen_qx object
     """
     std_lvl, data_rate, links = (
         gen_qx.analyser.parse_analyser_status(gen_qx.analyser.get_analyser_status())[
@@ -256,6 +278,9 @@ def get_subimages(gen_qx):
 def set_crc_count(gen_qx):
     """
     Gets the number of crcs for the standard and pattern that is currently being generated.
+
+    parameter:
+        gen_qx object
     """
     crc_count = len(gen_qx.analyser.get_crc_analyser())
     return crc_count
@@ -302,7 +327,7 @@ def generate_crcRecord(gen_qx, analyse_qx, standards_list, std_filter):
                                 try:
                                     print(f'retrieved using qx: {std}, {pattern}, {crc_value["activePictureCrc"].upper()}')
                                     dict_to_df = {}
-                                    dict_to_df.update(Standard=f'{std}', Pattern=f'str("{pattern}")', CrcValue=f'str("{crc_value["activePictureCrc"]}")', CrcCount=f'{crc_count}')
+                                    dict_to_df.update(Standard=f'{std}', Pattern=f'{pattern}', CrcValue=f'{crc_value["activePictureCrc"]}', CrcCount=f'{crc_count}')
                                     qx_crcs.append(dict_to_df)
                                     # bar()
                                 except KeyError as dataFrameErr:
@@ -318,6 +343,7 @@ def generate_crcRecord(gen_qx, analyse_qx, standards_list, std_filter):
     try:
         qx_dataframe = pd.DataFrame(qx_crcs)
         write_dataframe(qx_dataframe, std_filter, gen_qx)
+        write_json(qx_dataframe, std_filter, gen_qx)
     except KeyError as pickleErr:
         log.error(f"An error occurred while pickling: {pickleErr}")
 
@@ -335,7 +361,7 @@ def unpickle_crcRecord(version):
 
 def write_dataframe(dataframe, std_filter, gen_qx):
     """
-    Writes the given dataframe to disc.
+    Writes the given dataframe to file.
 
     This is to keep the code as DRY as possible.
     """
@@ -349,6 +375,22 @@ def write_dataframe(dataframe, std_filter, gen_qx):
     pickler = pickle.Pickler(records)
     pickler.dump(dataframe)
     records.close()
+
+
+def write_json(dataframe, std_filter, gen_qx):
+    """
+    Writes the given dataframe to a human readable format (JSON).
+    """
+    crc_meta = {}
+    version = gen_qx.about['Software_version']
+    for key, value in zip(gen_qx.about.keys(), gen_qx.about.values()):
+        crc_meta[key] = value
+    results = dataframe.to_json(orient='table')
+    parsed_json = json.loads(results)
+    parsed_json.append(crc_meta)
+
+    with open(f'crcRecord-{std_filter}-{version}.json', 'w', encoding='utf-8') as output:
+        json.dump(parsed_json, output, ensure_ascii=False, indent=4)
 
 
 def read_input_file(input_std_pattern_crc_list):
