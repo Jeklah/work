@@ -4,6 +4,17 @@ Features:
     * Adding standards to golden master.
     * Updating the golden master
     * Check CRC for a given standard against golden master.
+
+Environment Variables that need to be set:
+    * GENERATOR_QX
+    * ANALYSER_QX
+    * TEST_QX
+
+These can be set by using the following command from a terminal:
+
+export GENERATOR_QX='qx-<serial-number>.local'
+export ANALYSER_QX='qx-<serial-number>.local'
+export TEST_QX='qx-<serial-number>.local'
 """
 import os
 import sys
@@ -122,7 +133,6 @@ def user_input(user_choice_num):
         return search_date, input_std_list_file
 
 
-# Setting up filters to select standards.
 def gen_std_list(gen_qx, stds="confidence_test_standards"):
     """
     This is to give the companion the same filters that are used as global fixtures
@@ -136,50 +146,53 @@ def gen_std_list(gen_qx, stds="confidence_test_standards"):
         standards_list list
         stds string
     """
-    if not gen_qx.query_capability(OperationMode.IP_2110):
-        if stds == "nightly": # Nightly filter, requirements agreed upon in meeting.
-            standards_list = [
-                              (1.5, '1280x720p50', 'YCbCr:422:10', '1.5G_Rec.709'),
-                              (1.5, '1920x1080p23.98', 'YCbCr:422:10', '1.5G_Rec.709'),
-                              (1.5, '2048x1080p23.98', 'YCbCr:422:10', '1.5G_Rec.709'),
-                              (1.5, '3840x2160p25', 'YCbCr:422:10', 'QL_1.5G_SQ_S-Log3_Rec.2020'),
-                              (1.5, '4096x2160p25', 'YCbCr:422:10', 'QL_1.5G_SQ_Rec.709'),
-                              (1.5, '1920x1080i60', 'RGB:444:10', 'DL_1.5G_Rec.709'),
-                              (1.5, '1920x1080i50', 'RGB:444:12', 'DL_1.5G_HLG_Rec.2020'),
-                              (1.5, '1920x1080psf30', 'YCbCr:422:12', 'DL_1.5G_HLG_Rec.2020'),
-                              (1.5, '1920x1080i60', 'RGBA:4444:10', 'DL_1.5G_Rec.2020'),
-                              (1.5, '2048x1080p30', 'YCbCrA:4224:12', 'DL_1.5G_S-Log3_Rec.2020'),
-                              (1.5, '1920x1080i60', 'YCbCrA:4444:10', 'DL_1.5G_Rec.2020'),
-                              (1.5, '4096x2160p30', 'YCbCr:422:10', 'QL_1.5G_SQ_PQ_Rec.2020'),
-                              (1.5, '1920x1080p25', 'YCbCr:422:10', '1.5G_S-Log3_Rec.2020'),
-                              ]
-        elif stds == "test": # Returns smaller subset than 'fast', quicker testing.
-            standards_list = gen_qx.generator.get_matching_standards(
-                [1.5], r"1920.*", r"YCbCr:422:10", r".*709"
-            )
-        elif stds == "fast": # This filter was added to speed up testing and dev. It returns 10 stds.
-            standards_list = gen_qx.generator.get_matching_standards(
-                [1.5, 3.0], r"(1920x1080|1280x720)[i|p]50", "YCbCr:422:10", ".Rec.709"
-            )
-        elif stds == "confidence_test_standards":
-            standards_list = gen_qx.generator.get_matching_standards(
-                [1.5, 3.0, 6.0, 12.0],
-                r'\d+x\d+p\d+',
-                r'YCbCr:422:10',
-                r'.*709'
-            )
-        elif stds == "all":
-            all_stds = gen_qx.generator.get_standards()
-            standards_list = [
-                [data_rate, resolution, colour_map, gamut]
-                for data_rate in all_stds
-                for resolution in all_stds[data_rate]
-                for colour_map in all_stds[data_rate][resolution]
-                for gamut in all_stds[data_rate][resolution][colour_map]
-            ]
-    else:
-        print(f"{gen_qx.hostname} is current in IP 2110 mode. Please switch to SDI mode.")
-    return standards_list, stds
+    try:
+        if not gen_qx.query_capability(OperationMode.IP_2110):
+            if stds == "nightly": # Nightly filter, requirements agreed upon in meeting.
+                standards_list = [
+                                  (1.5, '1280x720p50', 'YCbCr:422:10', '1.5G_Rec.709'),
+                                  (1.5, '1920x1080p23.98', 'YCbCr:422:10', '1.5G_Rec.709'),
+                                  (1.5, '2048x1080p23.98', 'YCbCr:422:10', '1.5G_Rec.709'),
+                                  (1.5, '3840x2160p25', 'YCbCr:422:10', 'QL_1.5G_SQ_S-Log3_Rec.2020'),
+                                  (1.5, '4096x2160p25', 'YCbCr:422:10', 'QL_1.5G_SQ_Rec.709'),
+                                  (1.5, '1920x1080i60', 'RGB:444:10', 'DL_1.5G_Rec.709'),
+                                  (1.5, '1920x1080i50', 'RGB:444:12', 'DL_1.5G_HLG_Rec.2020'),
+                                  (1.5, '1920x1080psf30', 'YCbCr:422:12', 'DL_1.5G_HLG_Rec.2020'),
+                                  (1.5, '1920x1080i60', 'RGBA:4444:10', 'DL_1.5G_Rec.2020'),
+                                  (1.5, '2048x1080p30', 'YCbCrA:4224:12', 'DL_1.5G_S-Log3_Rec.2020'),
+                                  (1.5, '1920x1080i60', 'YCbCrA:4444:10', 'DL_1.5G_Rec.2020'),
+                                  (1.5, '4096x2160p30', 'YCbCr:422:10', 'QL_1.5G_SQ_PQ_Rec.2020'),
+                                  (1.5, '1920x1080p25', 'YCbCr:422:10', '1.5G_S-Log3_Rec.2020'),
+                                  ]
+            elif stds == "test": # Returns smaller subset than 'fast', quicker testing.
+                standards_list = gen_qx.generator.get_matching_standards(
+                    [1.5], r"1920.*", r"YCbCr:422:10", r".*709"
+                )
+            elif stds == "fast": # This filter was added to speed up testing and dev. It returns 10 stds.
+                standards_list = gen_qx.generator.get_matching_standards(
+                    [1.5, 3.0], r"(1920x1080|1280x720)[i|p]50", "YCbCr:422:10", ".*Rec.709"
+                )
+            elif stds == "confidence_test_standards":
+                standards_list = gen_qx.generator.get_matching_standards(
+                    [1.5, 3.0, 6.0, 12.0],
+                    r"\d+x\d+p\d+",
+                    r"YCbCr:422:10",
+                    r".*709"
+                )
+            elif stds == "all":
+                all_stds = gen_qx.generator.get_standards()
+                standards_list = [
+                    [data_rate, resolution, colour_map, gamut]
+                    for data_rate in all_stds
+                    for resolution in all_stds[data_rate]
+                    for colour_map in all_stds[data_rate][resolution]
+                    for gamut in all_stds[data_rate][resolution][colour_map]
+                ]
+        else:
+            print(f"{gen_qx.hostname} is current in IP 2110 mode. Please switch to SDI mode.")
+    except NameError as stdErr:
+        print(f'{gen_qx.hostname} could not match standard list {stds}: {stdErr}. Please check value of stds.')
+    return standards_list#, stds
 
 
 def check_standards(gen_qx, standards_list):
@@ -387,7 +400,7 @@ def write_json(dataframe, std_filter, gen_qx):
         crc_meta[key] = value
     results = dataframe.to_json(orient='table')
     parsed_json = json.loads(results)
-    parsed_json.append(crc_meta)
+    parsed_json.update(crc_meta)
 
     with open(f'crcRecord-{std_filter}-{version}.json', 'w', encoding='utf-8') as output:
         json.dump(parsed_json, output, ensure_ascii=False, indent=4)
