@@ -8,11 +8,9 @@ import time
 import urllib.parse
 import warnings
 
-import jsonpointer
 import requests
 
 from test_system.models.qxseries.qxexception import QxException
-
 
 class AnalyserException(QxException):
     """
@@ -228,13 +226,13 @@ class Analyser:
 
         return int(max_channels / 4)
 
-    def get_audio(self, data, channel_number=None):
+    def get_audio(self, data, channel_number=None) -> list:
         """
         Return data on incoming audio
 
         :param data: String indicating the type of information to return. <"level"> or <"phase">
         :param channel_number: Integer to specify the target channel number to return data for. If None, all channels are returned
-        :return: Dictionary object containing <level> or <phase> information for target (all) incoming audio channels
+        :return Dictionary: object containing <level> or <phase> information for target (all) incoming audio channels
         """
         response = self._http_session.get(self._baseurl + "analyser/audioMeter")
 
@@ -246,7 +244,7 @@ class Analyser:
             elif data == "phase":
                 audio_ret = audio_data["audioPhase"]
             else:
-                raise QxException(f'{self.hostname} - No data type indicator supplied. Cannot parse audio data.')
+                raise AnalyserException(f'{self.hostname} - No data type indicator supplied. Cannot parse audio data.')
 
             if not channel_number:
                 self.log.warning(
@@ -288,7 +286,7 @@ class Analyser:
             actual_colour = result[1]
             actual_format = "_".join(result[2:])
         except IndexError as err:
-            raise QxException(f"{self.hostname} - Analyser input is not formatted correctly... is the analyser receiving an input? - {str(err)}")
+            raise AnalyserException(f"{self.hostname} - Analyser input is not formatted correctly: {response.status_code}. Is the analyser receiving an input? - {str(err)}")
 
         if actual_aspect != exp_aspect:
             self.log.warning(f'{self.hostname} - Expected aspect does not match. Expected: {exp_aspect} Actual: {actual_aspect}')
@@ -398,11 +396,9 @@ class Analyser:
             multilink_tag = 4 if gamut.split("_")[0] == "QL" else 2
             # print("Removed %s from list" % split_gamut.pop(0))
         except IndexError as err:
-            self.log.error(f"Got index error: {err}")
-            self.log.error(f"Split gamut variable: {split_gamut}")
-            self.log.error(f"Parsed dict: {parsed_dict}")
-            self.log.error(f"All standard variables: {resolution}, {colour}, {gamut}")
-            raise QxException("")
+            error_message = f'Got index error: {err}, Split gamut variable: {split_gamut}, Parsed dict: {parsed_dict}, All standard variables: {resolution}, {colour}, {gamut}'
+            self.log.error(error_message)
+            raise AnalyserException(f'{self.hostname} - {error_message}')
 
         parsed_dict["type"] = {
             "data_rate_Gb": standard_data_rate,
@@ -531,10 +527,10 @@ class Analyser:
             crc_resp = response.json()
         except json.decoder.JSONDecodeError:
             if response and response.status_code == 204:
-                raise QxException(f'No content in the GET to URL {self._baseurl + "analyser/detail"}. The analyser may not be receiving an input')
+                raise AnalyserException(f'No content in the GET to URL {self._baseurl + "analyser/detail"}. The analyser may not be receiving an input')
             else:
                 response_message = response.content.strip("\n")
-                raise QxException(f'Could not GET analyser/detail: status {response.status_code} - {response_message}')
+                raise AnalyserException(f'Could not GET analyser/detail: status {response.status_code}: {response_message}:  {response.json().get("message", "No message")}')
 
         if crc_resp["status"] != 200:
             self.log.error(f'{self.hostname} - Unable to retrieve CRC analysis: {format(crc_resp["status"])} - {crc_resp["message"]}')
@@ -636,7 +632,7 @@ class Analyser:
         if response.status_code == 200:
             return response.json()
         else:
-            raise QxException(f'{self.hostname} - Could not get CRC summary: {response.status_code}: {response.json().get("message", "No message")}')
+            raise AnalyserException(f'{self.hostname} - Could not get CRC summary: {response.status_code}: {response.json().get("message", "No message")}')
 
     def get_crc_last_input_failure(self):
         """
@@ -647,7 +643,7 @@ class Analyser:
             time_since_failure = response_data.get("timeSinceInputFailure", None)
             return time_since_failure if time_since_failure else False
         else:
-            raise QxException(
+            raise AnalyserException(
                 f'{self.hostname} - No response body returned from analyser/crcSummary')
 
     @property
@@ -660,7 +656,7 @@ class Analyser:
         if response.status_code == 200:
             return response.json()
         else:
-            raise QxException(f'{self.hostname} - Could not get cable length: {response.status_code}: {response.json().get("message", "No message")}')
+            raise AnalyserException(f'{self.hostname} - Could not get cable length: {response.status_code}: {response.json().get("message", "No message")}')
 
     def cable_type(self, cable: str="belden_8281"):
         """
@@ -674,34 +670,44 @@ class Analyser:
         if response.status_code == 200:
             self.log.info(f"{self.hostname} - Cable type successfully set to {cable}")
         else:
-            raise QxException(f'{self.hostname} - Unable to set cable type to {cable}: {response.status_code}: {response.json().get("message", "No message")}')
+            raise AnalyserException(f'{self.hostname} - Unable to set cable type to {cable}: {response.status_code}: {response.json().get("message", "No message")}')
 
     @property
-    def loudness(self):
+    def loudness_config(self):
         """
         Return the loudness configuration as a dictionary.
-        :return dictionary
+
+        :return: response.json() dict
         """
         response = requests.get(f'{self._baseurl}/analyser/loudness/config')
-
         if response.status_code == 200:
             return response.json()
         else:
-            raise QxException(f'{self.hostname} - Could not get loudness configuration: {response.stauts_code}: {response.json().get("message", "No message")}')
+            raise AnalyserException(f'{self.hostname} - Could not get loudness configuration: {response.status_code}: {response.json().get("message", "No message")}')
 
-    @loudness.setter
-    def loudness(self, loudness_config):
+    @loudness_config.setter
+    def loudness_config(self, loudness_config):
         """
-        Sets the configuration for loudness monitoring.
-        :param loudness_config: Dictionary containing the configuration for loudness monitor.
+        Sets the configuration for loudness monitor.
+
+        :param: loudness_config dict
         """
-        if loudness_config.keys() == self.loudness.keys():
-            response = requests.put(f'{self._baseurl}/analyser/loudness/config', json=loudness_config)
-            if response.status_code == 200:
-                self.log.info(f'{self.hostname} - Set Loudness Monitor Configuration.')
-                self.log.info(f'{self.hostname}: Loudness Monitor configuration set {loudness_config}')
-            else:
-                raise QxException(f'{self.hostname} - Failed to set Loudness Monitor Configuration')
+        response = requests.put(f'{self._baseurl}/analyser/loudness/config', json=loudness_config)
+        if response.status_code == 200:
+            self.log.info(f'{self.hostname} - Set Loudness Monitor Configuration.')
+            self.log.info(f'{self.hostname}: Loudness Monitor configuration set {loudness_config}')
         else:
-            raise QxException(f'{self.hostname} - Loudness Monitor Key Check failed: {loudness_config.keys()} does not match {self.loudness.keys()}')
+            raise AnalyserException(f'{self.hostname} - Failed to set Loudness Monitor Configuration: {response.status_code}: {response.json().get("message", "No message")}')
 
+    @property
+    def loudness_info(self):
+        """
+        Returns information about the current state of loudness monitor.
+
+        :returns dictionary containing current values produced by loudness monitoring.
+        """
+        response = requests.get(f'{self._baseurl}/analyser/loudness/info')
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise AnalyserException(f'{self.hostname} - Could not get loudness information: {response.status_code}: {response.json().get("message", "No message")}')

@@ -1,0 +1,1 @@
+git config --global mergetool.vimdiff.cmd $merge_tool_path -f -d -c "4wincmd w | wincmd J" "$LOCAL" "$BASE" "$REMOTE" "$MERGED"

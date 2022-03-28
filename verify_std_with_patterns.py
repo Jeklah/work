@@ -16,6 +16,7 @@ export GENERATOR_QX='qx-<serial-number>.local'
 export ANALYSER_QX='qx-<serial-number>.local'
 export TEST_QX='qx-<serial-number>.local'
 """
+
 import os
 import sys
 import time
@@ -33,7 +34,6 @@ from test_system.models.qxseries.io import SDIIOType
 from test_system.logconfig import test_system_log
 from test_system.models.qxseries.analyser import AnalyserException
 from test_system.models.qxseries.generator import GeneratorException
-from test_system.testexception import TestException
 
 
 # Set up logging
@@ -41,23 +41,23 @@ log = logging.getLogger(test_system_log)
 
 
 # Get Env Variables
-generator = os.getenv("GENERATOR_QX")
-analyser = os.getenv("ANALYSER_QX")
-test = os.getenv("TEST_QX")
+GENERATOR = os.getenv("GENERATOR_QX")
+ANALYSER= os.getenv("ANALYSER_QX")
+TEST = os.getenv("TEST_QX")
 
 
-def generator_qx(generator):
+def generator_qx(GENERATOR):
     """
     Basic generator_qx setup.
 
-    parameter: generator string
+    :parameter: GENERATOR string
 
     * Bouncing Box set to False
     * Output copy set to False
     * Output source set to BNC
     * SDI Outputs set to generator
     """
-    gen_qx = make_qx(hostname=generator)
+    gen_qx = make_qx(hostname=GENERATOR)
     gen_qx.generator.bouncing_box = False
     gen_qx.generator.output_copy = False
     gen_qx.io.sdi_output_source = SDIIOType.BNC
@@ -66,15 +66,15 @@ def generator_qx(generator):
     return gen_qx
 
 
-def analyser_qx(analyser):
+def analyser_qx(ANALYSER):
     """
     Basic analyse_qx setup
 
-    parameter: analyser string
+    :parameter: ANALYSER string
 
     * Output/input(?) source set to BNC
     """
-    analyse_qx = make_qx(hostname=analyser)
+    analyse_qx = make_qx(hostname=ANALYSER)
     analyse_qx.io.sdi_output_source = SDIIOType.BNC
     log.info(f"Standard Verification Analyser {analyse_qx.hostname} setup complete.")
     return analyse_qx
@@ -91,6 +91,9 @@ def menu():
     """
     Presents the user with a menu, listing the choice of actions the user would like
     to take.
+
+    Using click.prompt checks for values outside the given range and
+    asks the user to re-enter a valid input if invalid input is given.
     """
     actions = [
                 'Update Standard',
@@ -102,8 +105,6 @@ def menu():
     print('Please choose what you would like to do from the list below.')
     for choice in actions:
         print(f'{actions.index(choice)+1}: {choice}')
-    # Using click.prompt checks for values outside the given range and
-    # asks the user to re-enter a valid input if invalid input is given.
     user_choice_num = click.prompt('Please select your choice using the numbers: ', type=click.IntRange(1, len(actions)))
     print()
     if user_choice_num == 5:
@@ -117,12 +118,9 @@ def user_input(user_choice_num):
     """
     Takes the input from the user and returns a list and the date the user would like to amend.
 
-    parameters:
-        user_choice_num string
-
-    returns:
-        search_date date
-        input_std_list_file list
+    :parameter: user_choice_num string
+    :return: search_date date,
+             input_std_list_file list
     """
     input_std_list_file = click.prompt('Please enter the name of the input file containing the standards, patterns and CRC values.', type=click.STRING)
     if user_choice_num == 1:
@@ -133,22 +131,19 @@ def user_input(user_choice_num):
         return search_date, input_std_list_file
 
 
-def gen_std_list(gen_qx, stds="confidence_test_standards"):
+def gen_std_list(gen_qx, stds="nightly"):
     """
     This is to give the companion the same filters that are used as global fixtures
     in our pytest setup, as well as the decided nightly subset.
 
-    parameters:
-        stds string default: confidence_test_standards
-        gen_qx object
-
-    returns:
-        standards_list list
-        stds string
+    :parameter: stds string default: nightly
+                gen_qx object
+    :return: standards_list list
+             stds string
     """
     try:
         if not gen_qx.query_capability(OperationMode.IP_2110):
-            if stds == "nightly": # Nightly filter, requirements agreed upon in meeting.
+            if stds == "nightly": # Nightly filter. Selected standards to give us the widest/broadest coverage as possible.
                 standards_list = [
                                   (1.5, '1280x720p50', 'YCbCr:422:10', '1.5G_Rec.709'),
                                   (1.5, '1920x1080p23.98', 'YCbCr:422:10', '1.5G_Rec.709'),
@@ -168,7 +163,7 @@ def gen_std_list(gen_qx, stds="confidence_test_standards"):
                 standards_list = gen_qx.generator.get_matching_standards(
                     [1.5], r"1920.*", r"YCbCr:422:10", r".*709"
                 )
-            elif stds == "fast": # This filter was added to speed up testing and dev. It returns 10 stds.
+            elif stds == "fast": # This filter was added to speed up testing and dev.
                 standards_list = gen_qx.generator.get_matching_standards(
                     [1.5, 3.0], r"(1920x1080|1280x720)[i|p]50", "YCbCr:422:10", ".*Rec.709"
                 )
@@ -192,48 +187,50 @@ def gen_std_list(gen_qx, stds="confidence_test_standards"):
             print(f"{gen_qx.hostname} is current in IP 2110 mode. Please switch to SDI mode.")
     except NameError as stdErr:
         print(f'{gen_qx.hostname} could not match standard list {stds}: {stdErr}. Please check value of stds.')
-    return standards_list#, stds
+    return standards_list
 
 
 def check_standards(gen_qx, standards_list):
     """
     Debugging method. Purely used to check the standards list.
 
-    parameters:
-        gen_qx object
-        standards_list list
+    :parameter: gen_qx object
+                standards_list list
     """
-    for std in standards_list:
-        print(type(std))
+    try:
+        for std in standards_list:
+            print(type(std))
+    except GeneratorException as std_list_err:
+        log.error(f"An error occurred while reading standards_list: {std_list_err}")
 
 
 def check_patterns(gen_qx, standards_list):
     """
     Debugging method. Purely used to check the pattern list.
 
-    parameters:
-        gen_qx object
-        standards_list list
+    :parameter: gen_qx object
+                standards_list list
 
     std[1] = resolution
     std[2] = colour mapping
     std[3] = gamut
     """
-    for std in standards_list:
-        test_patterns = gen_qx.generator.get_test_patterns(std[1], std[2], std[3])
-    print(test_patterns)
+    try:
+        for std in standards_list:
+            test_patterns = gen_qx.generator.get_test_patterns(std[1], std[2], std[3])
+        print(test_patterns)
+    except GeneratorException as std_list_err:
+        log.error(f"An error occurred while reading standards_list: {std_list_err}")
 
 
 def get_patterns(gen_qx, std):
     """
     Retrieves all supported patterns for a given standard.
 
-    parameters:
-        gen_qx object
-        standards_list list
+    :parameter: gen_qx object
+                standards_list list
 
-    returns:
-        test_patterns list
+    :return: test_patterns list
 
     std[1] = resolution
     std[2] = colour mapping
@@ -246,83 +243,32 @@ def get_patterns(gen_qx, std):
         log.error(f"An error occurred while getting test_patterns: {pattErr}")
 
 
-# Possibly able to remove this?
-def get_subimages(gen_qx):
-    """
-    Gets the subimages for a standard, based on it's level, data_rate and links.
-
-    parameters:
-        gen_qx object
-    """
-    std_lvl, data_rate, links = (
-        gen_qx.analyser.parse_analyser_status(gen_qx.analyser.get_analyser_status())[
-            "type"
-        ]["level"],
-        gen_qx.analyser.parse_analyser_status(gen_qx.analyser.get_analyser_status())[
-            "type"
-        ]["data_rate_Gb"],
-        gen_qx.analyser.parse_analyser_status(gen_qx.analyser.get_analyser_status())[
-            "type"
-        ]["link_number"],
-    )
-    if std_lvl == 'A':
-        if data_rate <= 3.0 and links == 1:
-            sub_images = ["subImage1"]
-        elif data_rate <= 3.0 and links > 3:
-            sub_images = ["subImage1", "subImage2", "subImage3", "subImage4"]
-        elif links == 2:
-            sub_images = ["subImage1"]
-        else:
-            sub_images = ["subImage1", "subImage2", "subImage3", "subImage4"]
-            log.error(f"{gen_qx.hostname} - Assuming QL 3GA: {data_rate}")
-    elif std_lvl == 'B':
-        if data_rate >= 3.0 and links == 1:
-            sub_images = ["subImage1", "linkBSubImage1"]
-        elif data_rate >= 3.0 and links == 4:
-            sub_images = ["subImage1", "subImage2", "subImage3", "subImage4",
-                          "linkBSubImage1", "linkBSubImage2", "linkBSubImage3", "linkBSubImage4"]
-        else:
-            raise TestException(f"{gen_qx.hostname} - Failed to determine sub images [LVL B]: {data_rate}")
-    else:
-        raise TestException(f"{gen_qx.hostname} - Unrecognised standard level: {std_lvl}")
-    return sub_images
-
-
 def set_crc_count(gen_qx):
     """
     Gets the number of crcs for the standard and pattern that is currently being generated.
 
-    parameter:
-        gen_qx object
+    :parameter: gen_qx object
+    :return: crc_count int
     """
     crc_count = len(gen_qx.analyser.get_crc_analyser())
     return crc_count
 
 
-# Method to work out total number of records that will end up in the dataframe
-# to pass to bar() for the loading bar. W.i.P
-def total_iterations(gen_qx, standards_list):
-    """
-    Loading bar that proved quite useful, mainly by providing an eta of completion.
-    """
-    total = 0
-    crc_count = 0
-    for std in standards_list:
-        test_patterns = get_patterns(gen_qx, std)
-        crc_count = set_crc_count(gen_qx)
-        total += len(test_patterns) * crc_count
-    return total
-
-
 def generate_crcRecord(gen_qx, analyse_qx, standards_list, std_filter):
     """
-    Main method that generates and writes the crcRecord.
+    Method that enumerates through a list of standards and
+    generates and writes the crcRecord dataframe for a
+    given standard.
+
+    :parameter: gen_qx object,
+                analyse_qx object,
+                standards_list list,
+                std_filter string
     """
     qx_crcs = []
     qx_settled = False
     crc_count = 0
-    try:  # 9329 original number
-        #with alive_bar(total_iterations(gen_qx, standards_list)) as bar:
+    try:
         for std in standards_list:
             data_rate, resolution, mapping, gamut = std
             try:
@@ -342,7 +288,6 @@ def generate_crcRecord(gen_qx, analyse_qx, standards_list, std_filter):
                                     dict_to_df = {}
                                     dict_to_df.update(Standard=f'{std}', Pattern=f'{pattern}', CrcValue=f'{crc_value["activePictureCrc"]}', CrcCount=f'{crc_count}')
                                     qx_crcs.append(dict_to_df)
-                                    # bar()
                                 except KeyError as dataFrameErr:
                                     log.error(f"An error occured while creating dataframe: {dataFrameErr}")
                         except AnalyserException as getAnlyStatErr:
@@ -361,14 +306,18 @@ def generate_crcRecord(gen_qx, analyse_qx, standards_list, std_filter):
         log.error(f"An error occurred while pickling: {pickleErr}")
 
 
-def unpickle_crcRecord(version):
+def unpickle_crcRecord(version, std_filter):
     """
     Unpickles the pkl file and returns a pandas dataframe.
 
     This is to keep the code as DRY as possible.
+
+    :parameter: version string
+                std_filter string
     """
     # @Arthur fast/test/whatever should be selected and changed
-    unpickled_crcs = pd.read_pickle(f'./crcRecord-confidence-{version}.pkl')
+    # leaving this until after walkthrough. 'confidence' needs to be changed to std-filter variable.
+    unpickled_crcs = pd.read_pickle(f"./crcRecord-{std_filter}-{version}.pkl")
     return unpickled_crcs
 
 
@@ -377,10 +326,11 @@ def write_dataframe(dataframe, std_filter, gen_qx):
     Writes the given dataframe to file.
 
     This is to keep the code as DRY as possible.
+
+    :parameter: dataframe pandas.core.DataFrame
+                std_filter string
+                gen_qx object
     """
-    # code for date. Changing to version number of qx so CRC Logger doesn't have to be run
-    # as often.
-    # today = date.date.today().strftime('%m-%b-%Y')
     version = gen_qx.about['Software_version']
     for key, value in zip(gen_qx.about.keys(), gen_qx.about.values()):
         dataframe.attrs[key] = value
@@ -393,6 +343,10 @@ def write_dataframe(dataframe, std_filter, gen_qx):
 def write_json(dataframe, std_filter, gen_qx):
     """
     Writes the given dataframe to a human readable format (JSON).
+
+    :parameter: dataframe pandas.core.DataFrame
+                std_filter string
+                gen_qx object
     """
     crc_meta = {}
     version = gen_qx.about['Software_version']
@@ -414,16 +368,17 @@ def read_input_file(input_std_pattern_crc_list):
         * update_crc()
 
     This is to keep the code as DRY as possible.
+
+    :parameter: input_std_pattern_crc_list list
     """
     with open(input_std_pattern_crc_list) as reader:
         contents = reader.read().split('\n')
-
     input_stds = []
+
     for line in contents:
         if line == '':
             continue
         input_stds.append(line.split(','))
-
     return input_stds
 
 
@@ -442,6 +397,12 @@ def add_standard(input_std_pattern_crc_list, crcRecord):
     A generate_pattern_crcs() method would be a good addition for future expansion of this tool
     to allow quickly filling out the N/a information with actual values without generating the
     entire crcRecord.
+
+    Only updating the golden master with a standard field, as the test_patterns that are relevant for that standard will
+    be generated on the qx, as will the CRC values for the test patterns.
+
+    :parameter: input_std_pattern_crc_list list
+                crcRecord array
     """
     adding_stds = read_input_file(input_std_pattern_crc_list)
 
@@ -450,8 +411,6 @@ def add_standard(input_std_pattern_crc_list, crcRecord):
         new_std = (float(data_rate), resolution, colour_mapping, gamut)
 
         dict_to_df = {}
-        # Only updating the golden master with a standard field, as the test_patterns that are relevant for that standard will
-        # be generated on the qx, as will the CRC values for the test patterns.
         dict_to_df.update(Standard=f'{new_std}', Pattern='N/a', CrcValue='N/a', CrcCount=0)
         crcRecord.append(dict_to_df, ignore_index=True)
         write_dataframe(crcRecord)
@@ -461,6 +420,10 @@ def add_standard(input_std_pattern_crc_list, crcRecord):
 def check_crc(gen_qx, analyse_qx, check_pattern_crc_list):
     """
     Checks (gets and prints) the CRCs of patterns for standards given in a list.
+
+    :parameter: gen_qx object
+                analyse_qx object
+                check_pattern_crc_list list
     """
     crc_index_list = []
     crc_list = []
@@ -496,16 +459,16 @@ def check_crc(gen_qx, analyse_qx, check_pattern_crc_list):
                 if crc_count > 1:
                     click.echo(f'This standard and pattern has {crc_count} CRC values.')
                     crc_index_list.append(crcRecord[(crcRecord['Standard'] == std) &
-                                                        (crcRecord['Pattern'] == check_pattern)]['CrcValue'].index[index])
+                                                    (crcRecord['Pattern'] == check_pattern)]['CrcValue'].index[index])
                     crc_list.append(crcRecord[(crcRecord['Standard'] == std) &
-                                                  (crcRecord['Pattern'] == check_pattern)]['CrcValue'][crc_index_list[index]])
+                                              (crcRecord['Pattern'] == check_pattern)]['CrcValue'][crc_index_list[index]])
                     print(f'The CRCs we have on record for {std} using {check_pattern} are {crc_list[crc_index_list[index]]}')
                     print(f"The CRCs the Qx/QxL is reading are {analyse_qx.analyser.get_crc_analyser()[index]['activePictureCrc']}")
                 else:
                         crc_index = crcRecord[(crcRecord['Standard'] == std) &
-                                                  (crcRecord['Pattern'] == check_pattern)]['CrcValue'].index[0]
+                                              (crcRecord['Pattern'] == check_pattern)]['CrcValue'].index[0]
                         std_crc = crcRecord[(crcRecord['Standard'] == std) &
-                                                (crcRecord['Pattern'] == check_pattern)]['CrcValue'][crc_index]
+                                            (crcRecord['Pattern'] == check_pattern)]['CrcValue'][crc_index]
                         print(f'The CRC we have on record for {std} using {check_pattern} is {std_crc}')
                         print(f"The CRC the Qx/QxL is reading is {analyse_qx.analyser.get_crc_analyser()[index]['activePictureCrc']}")
 
@@ -513,6 +476,11 @@ def check_crc(gen_qx, analyse_qx, check_pattern_crc_list):
 def update_crc(gen_qx, update_crc_list):
     """
     Updates the golden master with the values provided in the input file.
+
+    Pattern and CRC will have the same index so can use same variable for index.
+
+    :parameter: gen_qx object
+                update_crc_list list
     """
     crc_index_list = []
     crc_list = []
@@ -533,25 +501,25 @@ def update_crc(gen_qx, update_crc_list):
             new_crc_index = click.prompt('Please choose which CRC you would like to edit: ', type=click.INT)
             for index in range(crc_count):
                 crc_index_list.append(crcRecord[(crcRecord['Standard'] == std) &
-                                                    (crcRecord['Pattern'] == update_pattern)]['CrcValue'].index[index])
+                                                (crcRecord['Pattern'] == update_pattern)]['CrcValue'].index[index])
                 crc_list.append(crcRecord[(crcRecord['Standard'] == std) &
-                                              (crcRecord['Pattern'] == update_pattern)]['CrcValue'][crc_index_list[index]])
-                std_ptn_index = crc_index_list[new_crc_index] # Pattern and CRC will have the same index
+                                          (crcRecord['Pattern'] == update_pattern)]['CrcValue'][crc_index_list[index]])
+                std_ptn_index = crc_index_list[new_crc_index]
                 click.echo(f'{index}: {crc_list[index]}')
         else:
             crc_index = crcRecord[(crcRecord['Standard'] == std) &
-                                      (crcRecord['Pattern'] == update_pattern)]['CrcValue'].index[0]
+                                  (crcRecord['Pattern'] == update_pattern)]['CrcValue'].index[0]
             std_crc = crcRecord[(crcRecord['Standard'] == std) &
-                                    (crcRecord['Pattern'] == update_pattern)]['CrcValue'][crc_index]
+                                (crcRecord['Pattern'] == update_pattern)]['CrcValue'][crc_index]
             std_ptn_index = crcRecord[(crcRecord['Standard'] == std) &
-                                          (crcRecord['Pattern'] == update_pattern)]['Pattern'].index[0]
+                                      (crcRecord['Pattern'] == update_pattern)]['Pattern'].index[0]
 
         tmp_df = pd.DataFrame({'CrcValue': new_crc}, index=[std_ptn_index])
         crcRecord.update(tmp_df)
         print(f'CRC before update: {std_crc}')
         write_dataframe(crcRecord)
         updated_crc = crcRecord[(crcRecord['Standard'] == std) &
-                                    (crcRecord['Pattern'] == update_pattern)]
+                                (crcRecord['Pattern'] == update_pattern)]
         print(f'Updated CRC: {updated_crc}.')
 
 
@@ -559,8 +527,8 @@ def main():
     """
     Entry point for the program.
     """
-    gen_qx = generator_qx(generator)
-    analyse_qx = analyser_qx(analyser)
+    gen_qx = generator_qx(GENERATOR)
+    analyse_qx = analyser_qx(ANALYSER)
     welcome()
     user_action = menu()
     version = gen_qx.about['Software_version']
