@@ -1,0 +1,10 @@
+
+# Do not include the following directories
+autolib/models/build_artifacts/*
+docs/*
+logs/*
+reports/*
+venv/*
+web_server/*
+
+*.xml

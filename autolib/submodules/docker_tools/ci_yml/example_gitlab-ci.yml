@@ -1,0 +1,68 @@
+# EDITING NOTES:
+# Run your job description through the CI linter before committing
+# http://phablab/qxrnd/docker_tools/-/ci/lint
+# 
+
+# Gitlab project setup pre-requisites:
+# 1) Setup your main branch as "main" and add it to the list of protected branches
+# 2) Setup a branch protection rule of "release_*"
+# 3) Setup a tag protection rule of "release_*"
+# 4) Add a CI variable for "NEXUS_CREDENTIALS" and set that as the password for the Nexus "gitlab" user - this should be masked but not protected
+# 5) Add a CI variable for "NEXUS_RELEASE_CREDENTIALS" and set that as the password for the Nexus "gitlab_release" user - this should be masked AND protected
+
+
+# Include the base jobs that support building and enable upload to Nexus
+include:
+  - project: 'qxrnd/docker_tools'
+    ref: 'develop'
+    file: 'ci_yml/nexus_docker_build.yml'
+
+.variables_yocto_dunfell: &variables_yocto_dunfell
+  # Local path to your Dockerfile
+  DOCKER_FILE: yocto_dunfell/Dockerfile
+  # Image:Tag format - in this example bspbuildcontainers is the repo name and yocto_dunfell is the image name
+  DOCKER_DEV_IMAGE_TAG: ${DOCKER_DEV_REGISTRY}/bspbuildcontainers/yocto_dunfell:${CI_COMMIT_REF_SLUG}_${CI_COMMIT_SHA}
+  # Image name for release - in this example bspbuildcontainers is the repo name and yocto_dunfell is the image name
+  DOCKER_RELEASE_IMAGE: ${DOCKER_RELEASE_REGISTRY}/bspbuildcontainers/yocto_dunfell
+  # Name of the saved Docker image file (archived for up to 2 months, or as defined below)
+  DOCKER_IMAGE_FILENAME: yocto_dunfell.img
+
+# Build job - adapt names as-needed
+yocto_dunfell_build:
+  extends: .docker_build_base_job
+  variables:
+    <<: *variables_yocto_dunfell
+  artifacts:
+    # No need to keep this as it will be stored on Nexus
+    expire_in: 1 day
+    paths: &yocto_dunfell_artifacts
+      - ./yocto_dunfell.img
+
+# Publish job which publishes to the Nexus docker dev repo - adapt names as-needed
+yocto_dunfell_publish_dev:
+  extends: .docker_publish_dev_base_job
+  variables:
+    <<: *variables_yocto_dunfell
+  needs: ["yocto_dunfell_build"]
+  dependencies:
+    - yocto_dunfell_build
+
+# Archive job which only runs for main/release branches and keeps the artifacts around for up to 2 months in 
+# case you want to deploy to the Nexus docker release repo - adapt names as-needed
+yocto_dunfell_archive:
+  extends: .docker_archive_base_job
+  needs: ["yocto_dunfell_build"]
+  dependencies:
+    - yocto_dunfell_build
+  artifacts:
+    expire_in: 2 months
+    paths: *yocto_dunfell_artifacts
+
+# Manually executed publish job which publishes to the Nexus docker release repo - adapt names as-needed
+yocto_dunfell_publish_release:
+  extends: .docker_publish_release_base_job
+  variables:
+    <<: *variables_yocto_dunfell
+  needs: ["yocto_dunfell_archive"]
+  dependencies:
+    - yocto_dunfell_archive

@@ -1,0 +1,141 @@
+# EDITING NOTES:
+# Run your job description through the CI linter before committing
+# http://gitlab.com/phabrix/rnd/docker_tools/-/ci/lint
+#
+
+variables:
+  RELEASE_REGEX: "^release[A-Za-z0-9_]+"
+  DOCKER_RELEASE_REGISTRY: "nexus.rnd.phabrix.com:5000"
+  DOCKER_RELEASE_USER: gitlab_release
+  DOCKER_RELEASE_CREDS: ${NEXUS_RELEASE_CREDENTIALS}
+  DOCKER_DEV_REGISTRY: "nexus.rnd.phabrix.com:5001"
+  DOCKER_DEV_USER: gitlab
+  DOCKER_DEV_CREDS: ${NEXUS_CREDENTIALS}
+
+# Run this before each job to login to docker and install git
+before_script:
+  - |  
+    if [ -z "${DOCKER_DEV_CREDS}" ]
+    then
+        echo "ERROR: Docker credentials are NULL - are they configured in Gitlab? Are the branch/tag/credential protection settings correct?"
+        exit 1
+    fi
+  - echo "${DOCKER_DEV_CREDS}" | docker login --username ${DOCKER_DEV_USER} --password-stdin ${DOCKER_DEV_REGISTRY}
+  - docker info
+
+# Run this after each job to make sure we logout (this will run even if the job fails)
+after_script:
+  - docker logout ${DOCKER_DEV_REGISTRY}
+  - docker logout ${DOCKER_RELEASE_REGISTRY}
+
+# Define the build stages for the pipeline
+stages:
+  - build
+  - publish_dev
+  - archive_release
+  - publish_release
+
+# Defines common rules that can be used as triggers
+.template_rules:
+  rules:
+    - if: &story            '($CI_COMMIT_REF_NAME =~ /^(f|d|t)\d{1,6}\/story\/\w+$/ || $CI_COMMIT_REF_NAME =~ /^(QX|PJ70)-[0-9]{1,8}\/(epic|story|bug|task)\/(\w|_)*(\/(sw|hw|bsp)(\+(sw|hw|bsp))*)?$/)'
+    - if: &release_branch   '$CI_COMMIT_REF_NAME =~ /^release\w+$/ && $CI_COMMIT_TAG == null'
+    - if: &main             '$CI_COMMIT_REF_NAME == "main" && $CI_COMMIT_TAG == null'
+    - if: &non_release_branch '$CI_COMMIT_REF_NAME !~ /^release\w+$/'
+    - if: &is_tag           '$CI_COMMIT_TAG != null'
+    - if: &merge_request    '$CI_MERGE_REQUEST_ID != null'
+    - if: &manual_pipeline  '$CI_PIPELINE_SOURCE == "web"'
+
+# Defines the default triggers to be used for each job
+.default_rules:
+    rules:
+      - if: *is_tag
+        when: never
+
+      - if: *merge_request
+        when: never
+
+      - if: *story
+        changes: &change_list
+          - ".gitlab-ci.yml"
+          - "*"
+          - "**/*"
+        when: always
+
+      - if: *main
+        changes: *change_list
+        when: always
+
+      - if: *release_branch
+        changes: *change_list
+        when: always
+
+      - if: *manual_pipeline
+        when: always
+
+# Defines the common elements that all other base jobs inherit
+.docker_base_job:
+  image: docker/dev-environments-default:f710d90c15d6f6462ebf492df33a8dac11093f30
+  tags:
+    - linux
+    - bsp_build
+    - docker
+  timeout: 300 minutes
+
+# Base/template job for building a dockerfile
+.docker_build_base_job:
+  stage: build
+  extends: .docker_base_job
+  rules:
+    - !reference [.default_rules, rules]
+  script:
+    - docker build . -f ${DOCKER_FILE} --tag ${DOCKER_DEV_IMAGE_TAG}
+    - docker push ${DOCKER_DEV_IMAGE_TAG}
+
+# Base/template job for publishing to the nexus release repository
+.docker_publish_release_base_job:
+  stage: publish_release
+  extends: .docker_base_job
+  rules:
+    - if: *release_branch
+      when: manual
+    - if: *main
+      when: manual
+  # Don't block the pipeline as won't be run for non-main/non-release builds
+  allow_failure: true
+  script:
+    - |
+      slugify () {
+          echo "$1" | sed -r s/[~\^]+//g | sed -r s/[^a-zA-Z0-9_.-]+/-/g | sed -r s/^-+\|-+$//g
+      }
+    - |
+      # Get the most recent annotated tag that points at this SHA1
+      TAGNAME=$(git tag --points-at HEAD --sort=-taggerdate --format '%(tag)' release_* | head -n 1)
+      if [ -z "${TAGNAME}" ]
+      then
+          echo "ERROR: There is no annotated release tag created for this SHA1 - please create an annotated release tag (in the format 'release_*') and try again"
+          exit 1
+      fi
+      DOCKER_TAG=$(slugify "${TAGNAME}")
+    - |
+      if [ -z "${DOCKER_RELEASE_CREDS}" ]
+      then
+          echo "ERROR: Docker credentials are NULL - are they configured in Gitlab? Are the branch/tag/credential protection settings correct?"
+          exit 1
+      fi
+    - echo "${DOCKER_RELEASE_CREDS}" | docker login --username ${DOCKER_RELEASE_USER} --password-stdin ${DOCKER_RELEASE_REGISTRY}
+    - docker pull ${DOCKER_DEV_IMAGE_TAG}
+    - echo "Creating tag ${DOCKER_RELEASE_IMAGE}:${DOCKER_TAG}"
+    - docker tag ${DOCKER_DEV_IMAGE_TAG} ${DOCKER_RELEASE_IMAGE}:${DOCKER_TAG}
+    - docker push ${DOCKER_RELEASE_IMAGE}:${DOCKER_TAG}
+    - |
+      # Tag as latest if we're releasing from the main branch
+      if [ "${CI_COMMIT_REF_NAME}" == "main" ]
+      then
+          docker tag ${DOCKER_DEV_IMAGE_TAG} ${DOCKER_RELEASE_IMAGE}:latest
+          docker push ${DOCKER_RELEASE_IMAGE}:latest
+      fi
+
+# Uncomment the below if you want to run through CI linter else it will complain about not having any jobs!
+#dont_commit_me:
+#  extends: .docker_build_base_job
