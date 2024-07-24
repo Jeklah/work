@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="autolib" errors="0" failures="1" skipped="0" tests="2" time="99.104" timestamp="2023-10-25T10:12:57.390657" hostname="ab-VM"><testcase classname="AncillaryInspectorTests.test_anc_location" name="test_s352_location_confidence[1.5-1280x720p25-YCbCr:422:10-1.5G_Rec.709]" time="61.969"><system-out>--------------------------------- Captured Out ---------------------------------
+
+</system-out></testcase><testcase classname="AncillaryInspectorTests.test_anc_location" name="test_s352_location_confidence[1.5-1280x720p29.97-YCbCr:422:10-1.5G_Rec.709]" time="10.502"><failure message="ValueError: a Debugger instance already exists">self = &lt;_pytest.debugging.pytestPDB._get_pdb_wrapper_class.&lt;locals&gt;.PytestPdbWrapper object at 0x7f997d2ab6d0&gt;, stdin = None, stdout = None
+term_size = None, steal_output = False, _continue_at_start = False, kwargs = {}
+
+    def __init__(self, stdin=None, stdout=None, term_size=None, steal_output=False,
+                 _continue_at_start=False, **kwargs):
+    
+        if Debugger._current_debugger:
+&gt;           raise ValueError("a Debugger instance already exists")
+E           ValueError: a Debugger instance already exists
+
+_continue_at_start = False
+kwargs     = {}
+self       = &lt;_pytest.debugging.pytestPDB._get_pdb_wrapper_class.&lt;locals&gt;.PytestPdbWrapper object at 0x7f997d2ab6d0&gt;
+stdin      = None
+stdout     = None
+steal_output = False
+term_size  = None
+
+../../../../venv_autolib/lib/python3.8/site-packages/pudb/debugger.py:189: ValueError</failure><system-out>--------------------------------- Captured Out ---------------------------------
+
+</system-out></testcase></testsuite></testsuites>

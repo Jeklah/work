@@ -1,0 +1,178 @@
+pipeline {
+    agent {
+        docker {
+            image 'nexus.rnd.phabrix.com:5000/autolib:latest'
+            label 'autolib'
+            args '--network=host'
+            alwaysPull true
+            reuseNode true
+            registryUrl 'http://nexus.rnd.phabrix.com:5000'
+            registryCredentialsId 'DuncPhablab'
+        }
+    }
+    parameters {
+        string(name: 'TEST_QX', defaultValue: '192.168.10.158', description: 'Hostname of a Qx / QxL unit that will be passed to the test suite as TEST_QX')
+        string(name: 'LATEST_SOFTWARE_URL', defaultValue: 'http://jenkins:8080/job/GitLab%20Qx%20Linux%20Develop%20Build/lastSuccessfulBuild/artifact/sw/phab_qx_upgrade.bin', description: 'URL pointing to the software revision to test.')
+        booleanParam(name: 'RUN_UPGRADE_TEST', defaultValue: true, description: 'Run upgrade tests (strongly recommended)')
+        booleanParam(name: 'RUN_SMOKE_TEST', defaultValue: true, description: 'Run quick smoke test (strongly recommended)')
+        booleanParam(name: 'RUN_SYSTEM_TESTS', defaultValue: true, description: 'Run system tests (Slow, takes > 4h)')
+        booleanParam(name: 'RUN_SDISTRESS_TEST_SUITE', defaultValue: true, description: 'Run SDI stress tests (excluding tests marked as slow)')
+        booleanParam(name: 'RUN_SDI_TEST_SUITE', defaultValue: true, description: 'Run SDI tests (excluding tests marked as slow)')
+        booleanParam(name: 'RUN_2110_TEST_SUITE', defaultValue: true, description: 'Run 2110 (excluding tests marked as slow)')
+        booleanParam(name: 'RUN_2022_6_TEST_SUITE', defaultValue: true, description: 'Run 2022-6 tests (excluding tests marked as slow)')
+        booleanParam(name: 'RUN_SLOW_TESTS', defaultValue: false, description: '[UNIMPLEMENTED] Include tests in test suites for all operation modes marked as slow (this can take hours)')
+    }
+
+    stages {
+        stage('Upgrade')
+        {
+            parallel {
+                stage("Upgrade TEST_QX") {
+                    when { expression { "${params.RUN_UPGRADE_TEST}" == 'true'} }
+                    steps {
+                        dir('tests') {
+                            sh  """
+                                export LATEST_SOFTWARE_URL=${params.LATEST_SOFTWARE_URL}
+                                echo 'Starting Upgrade TEST_QX phase - LATEST_SOFTWARE_URL is $LATEST_SOFTWARE_URL'
+                                ./run_suite.sh ${params.TEST_QX} initial_basic_upgrade_test System/test_upgrades.py -k test_upgrade_basic
+                            """
+                        }
+                    }
+                    post {
+                        always {
+                            junit allowEmptyResults: true, keepLongStdio: true, testResults: 'tests/initial_basic_upgrade_test.junit.xml'
+                            archiveArtifacts allowEmptyArchive: true, artifacts: 'tests/initial_basic_upgrade_test.log,tests/initial_basic_upgrade_test.pytest_output'
+                        }
+                    }
+                }
+            }
+        }
+        stage('Smoke Test') {
+            when { expression { "${params.RUN_SMOKE_TEST}" == 'true'} }
+            steps {
+                dir('tests') {
+                    sh """
+                        export LATEST_SOFTWARE_URL=${params.LATEST_SOFTWARE_URL}
+                        echo 'Starting Smoke Test phase - LATEST_SOFTWARE_URL is $LATEST_SOFTWARE_URL'
+                        ./smoke_test.sh ${params.TEST_QX} smoke_test
+                    """
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, keepLongStdio: true, testResults: 'tests/smoke_test*.junit.xml'
+                    archiveArtifacts allowEmptyArchive: true, artifacts: 'tests/smoke_test*.log, tests/smoke_test*.pytest_output'
+                }
+            }
+        }
+        stage('SDI Stress Test Suite')
+        {
+            when { expression { "${params.RUN_SDISTRESS_TEST_SUITE}" == 'true'} }
+            steps {
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                    dir('tests') {
+                        sh """
+                            export LATEST_SOFTWARE_URL=${params.LATEST_SOFTWARE_URL}
+                            echo 'Starting SDI Stress Test Suite phase - LATEST_SOFTWARE_URL is $LATEST_SOFTWARE_URL'
+                            python set_qx_mode.py ${params.TEST_QX} "SDI_STRESS"
+                            ./run_suite.sh ${params.TEST_QX} sdi_stress -m 'sdi_stress and not smoke and not slow and not initial_setup and not fundamental'
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, keepLongStdio: true, testResults: 'tests/sdi_stress.junit.xml'
+                    archiveArtifacts allowEmptyArchive: true, artifacts: 'tests/sdi_stress.log, tests/sdi_stress.pytest_output'
+                }
+            }
+        }
+        stage('SDI Test Suite')
+        {
+            when { expression { "${params.RUN_SDI_TEST_SUITE}" == 'true'} }
+            steps {
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                    dir('tests') {
+                        sh """
+                            export LATEST_SOFTWARE_URL=${params.LATEST_SOFTWARE_URL}
+                            echo 'Starting SDI Test Suite phase - LATEST_SOFTWARE_URL is $LATEST_SOFTWARE_URL'
+                            python set_qx_mode.py ${params.TEST_QX} "SDI"
+                            ./run_suite.sh ${params.TEST_QX} sdi -m 'sdi and not smoke and not slow and not initial_setup and not fundamental'
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, keepLongStdio: true, testResults: 'tests/sdi.junit.xml'
+                    archiveArtifacts allowEmptyArchive: true, artifacts: 'tests/sdi.log, tests/sdi.pytest_output, tests/CRC_Checks/crc_data/**', followSymlinks: false
+                }
+            }
+        }
+        stage('IP 2110 Test Suite')
+        {
+            when { expression { "${params.RUN_2110_TEST_SUITE}" == 'true'} }
+            steps {
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                    dir('tests') {
+                        sh """
+                            export LATEST_SOFTWARE_URL=${params.LATEST_SOFTWARE_URL}
+                            echo 'Starting IP 2110 Test Suite phase - LATEST_SOFTWARE_URL is $LATEST_SOFTWARE_URL'
+                            python set_qx_mode.py ${params.TEST_QX} "IP_2110"
+                            ./run_suite.sh ${params.TEST_QX} ip2110 -m 'ip2110 and not smoke and not slow and not initial_setup and not fundamental'
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, keepLongStdio: true, testResults: 'tests/ip2110.junit.xml'
+                    archiveArtifacts allowEmptyArchive: true, artifacts: 'tests/ip2110.log, tests/ip2110.pytest_output'
+                }
+            }
+        }
+        stage('IP 2022-6 Test Suite')
+        {
+            when { expression { "${params.RUN_2022_6_TEST_SUITE}" == 'true'} }
+            steps {
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                    dir('tests') {
+                        sh """
+                            export LATEST_SOFTWARE_URL=${params.LATEST_SOFTWARE_URL}
+                            echo 'Starting IP 2022-6 Test Suite phase - LATEST_SOFTWARE_URL is $LATEST_SOFTWARE_URL'
+                            python set_qx_mode.py ${params.TEST_QX} "IP_2022_6"
+                            ./run_suite.sh ${params.TEST_QX} ip2022_6 -m 'ip2022_6 and not smoke and not slow and not initial_setup and not fundamental'
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, keepLongStdio: true, testResults: 'tests/ip2022_6.junit.xml'
+                    archiveArtifacts allowEmptyArchive: true, artifacts: 'tests/ip2022_6.log, tests/ip2022_6.pytest_output'
+                }
+            }
+        }
+        stage('System Tests')
+        {
+            when { expression { "${params.RUN_SYSTEM_TESTS}" == 'true'} }
+            steps {
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                    dir('tests') {
+                        sh """
+                            export LATEST_SOFTWARE_URL=${params.LATEST_SOFTWARE_URL}
+                            echo 'Starting System Tests phase - LATEST_SOFTWARE_URL is $LATEST_SOFTWARE_URL'
+                            ./run_suite.sh ${params.TEST_QX} system_tests -m 'system and not smoke and not initial_setup and not fundamental'
+                        """
+                    }
+                }
+            }
+            post {
+                always {
+                        junit allowEmptyResults: true, keepLongStdio: true, testResults: 'tests/system_tests.junit.xml'
+                        archiveArtifacts allowEmptyArchive: true, artifacts: 'tests/system_tests.log, tests/system_tests.pytest_output'
+                }
+            }
+        }
+    }
+}

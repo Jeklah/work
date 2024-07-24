@@ -1,0 +1,8 @@
+[
+    {
+        "version": "4.1.0",
+        "url": "http://titan/Qx/4.1.0.168/Qx_Series_V4.1.zip",
+        "enabled": true,
+        "supports": ["Qx", "QxL"]
+    }
+]

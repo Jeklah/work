@@ -1,0 +1,62 @@
+[
+    {
+        "version": "3.3.0",
+        "url": "http://titan/Qx/3.3.0.597/phab_qx_upgrade.bin",
+        "enabled": false,
+        "supports": ["Qx"]
+    },
+    {
+        "version": "3.3.1",
+        "url": "http://titan/Qx/3.3.1.35/phab_qx_upgrade.bin",
+        "enabled": false,
+        "supports": ["Qx"]
+    },
+    {
+        "version": "3.4.1",
+        "url": "http://titan/Qx/3.4.1.67/phab_qx_upgrade.bin",
+        "enabled": false,
+        "supports": ["Qx"]
+    },
+    {
+        "version": "3.4.2",
+        "url": "http://titan/Qx/3.4.2.72/phab_qx_upgrade.bin",
+        "enabled": true,
+        "supports": ["Qx"]
+    },
+    {
+        "version": "4.0.0",
+        "url": "http://titan/Qx/4.0.0.b117/QxL_Version_4.0.zip",
+        "enabled": true,
+        "supports": ["QxL"]
+    },
+    {
+        "version": "4.1.0",
+        "url": "http://titan/Qx/4.1.0.168/Qx_Series_V4.1.zip",
+        "enabled": true,
+        "supports": ["Qx", "QxL"]
+    },
+    {
+        "version": "4.1.1",
+        "url": "http://titan/Qx/4.1.1.180/qx-4.1.1.zip",
+        "enabled": true,
+        "supports": ["Qx", "QxL"]
+    },
+    {
+        "version": "4.2.0",
+        "url": "http://titan/Qx/4.2.0.201/qx-4.2.0.zip",
+        "enabled": true,
+        "supports": ["Qx", "QxL"]
+    },
+    {
+        "version": "4.2.1",
+        "url": "http://titan/Qx/4.2.1.203/qx-4.2.1.zip",
+        "enabled": true,
+        "supports": ["Qx", "QxL"]
+    },
+    {
+        "version": "4.2.2",
+        "url": "http://titan/Qx/4.2.2.207/qx-4.2.2.zip",
+        "enabled": true,
+        "supports": ["Qx", "QxL"]
+    }
+]
