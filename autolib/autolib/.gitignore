@@ -1,0 +1,91 @@
+# C++ objects and libs
+
+*.slo
+*.lo
+*.o
+*.a
+*.la
+*.lai
+*.so
+*.dll
+*.dylib
+
+# Qt-es
+
+/.qmake.cache
+/.qmake.stash
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+Makefile*
+*-build-*
+
+# QtCreator
+
+*.autosave
+
+#QtCtreator Qml
+*.qmlproject.user
+*.qmlproject.user.*
+
+#Generic Merge Tool temp files
+*.orig
+
+# Shadow and staging dirs
+linux_shadow
+windows_shadow
+native_shadow
+linux_staging
+windows_staging
+.vscode
+/.project
+
+# Doxygen
+/dox
+
+# Ignore core dumps
+core
+
+# Ignore gdb config, as it will always get out of step with the distro
+.gdbinit
+
+# Ignore the log file from TestIp
+qxapp.log
+
+# Ignore auto-backup files
+*~
+
+# -------------------------------------------------------------------------------- autolib
+
+# Ignore PyTest cache
+.pytest_cache
+
+# Ignore local logs and reports from test directory
+logs/
+reports/
+nosetests.xml
+
+# Ignore binary files"
+/*.bin
+
+# Ignore venv from test directory
+venv/
+
+# Ignore IDE configuration files
+*/__pycache__/
+.idea/
+
+# Ignore any .pyc file extentions and video standards dictionaries from test directory
+*.pyc
+*-video_standards_dictionary.txt
+
+# Ignore any .png files
+*.png
+
+# Do not track test configuration files (add new config files manually)
+# *.ini

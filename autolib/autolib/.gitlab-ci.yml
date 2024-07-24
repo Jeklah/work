@@ -1,0 +1,199 @@
+image: docker/dev-environments-default:f710d90c15d6f6462ebf492df33a8dac11093f30
+
+stages:
+  - unit_tests
+  - build_package
+  - build_container
+  - build_documentation
+  - test_container
+  - release_all
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  RELEASE_REGEX: "^release[A-Za-z0-9_]+"
+  DOCKER_RELEASE_USER: gitlab_release
+  DOCKER_RELEASE_CREDS: ${NEXUS_RELEASE_CREDENTIALS}
+  DOCKER_DEV_USER: gitlab
+  DOCKER_DEV_CREDS: ${NEXUS_CREDENTIALS}
+  DOCKER_DEV_IMAGE_TAG: ${NEXUS_DOCKER_DEV_REGISTRY}/autolib:${CI_COMMIT_REF_SLUG}_${CI_COMMIT_SHA}
+  DOCKER_DEV_LATEST_IMAGE_TAG: ${NEXUS_DOCKER_DEV_REGISTRY}/autolib:latest
+  DOCKER_RELEASE_IMAGE: ${NEXUS_DOCKER_RELEASE_REGISTRY}/autolib
+  PYPI_RELEASE_LOCATION: ${NEXUS_RELEASE_REPO_URL}/phabrix_pypi_release/
+  PYPI_DEV_LOCATION: ${NEXUS_DEV_REPO_URL}/phabrix_pypi_dev/
+  DEPLOY_USERHOST: "lighttpd@holly"
+  DEPLOY_REMOTE_PATH: "autolib"
+
+include:
+  - project: '${CI_PROJECT_NAMESPACE}/common_ci_scripts'
+    # Before merging, make sure this is a SHA1/tag and not a branch name else if the branch changes it might not build!
+    ref: 'release_v2_0_1'
+    file: 'common_build_rules.yml'
+
+.base_job_tags:
+  tags:
+    - linux
+    - docker
+    - sw_lowcpu
+
+.base_job:
+  extends: .base_job_tags
+  image: docker/dev-environments-default:f710d90c15d6f6462ebf492df33a8dac11093f30
+  rules:
+    # Always build scheduled pipelines
+    - if: !reference [.is_scheduled_pipeline, if]
+      when: always
+
+    - if: !reference [.is_dev_branch_with_open_mr, if]
+      when: always
+
+    - if: !reference [.is_main_branch, if]
+      when: always
+
+    - if: !reference [.is_release_branch, if]
+      when: always
+
+  # Run this before each job to login to docker
+  before_script:
+    - |
+      if [ -z "${DOCKER_DEV_CREDS}" ]
+      then
+          echo "ERROR: Docker credentials are NULL - are they configured in Gitlab? Are the branch/tag/credential protection settings correct?"
+          exit 1
+      fi
+    - echo "${DOCKER_DEV_CREDS}" | docker login --username ${DOCKER_DEV_USER} --password-stdin ${NEXUS_DOCKER_DEV_REGISTRY}
+    - docker info
+
+  # Run this after each job to make sure we logout (this will run even if the job fails)
+  after_script:
+    - docker logout ${NEXUS_DOCKER_DEV_REGISTRY}
+    - docker logout ${NEXUS_DOCKER_RELEASE_REGISTRY}
+
+.python_base_job:
+  extends: .base_job_tags
+  image: python:3.10-buster
+  rules:
+    # Always build scheduled pipelines
+    - if: !reference [.is_scheduled_pipeline, if]
+      when: always
+
+    - if: !reference [.is_dev_branch_with_open_mr, if]
+      when: always
+
+    - if: !reference [.is_main_branch, if]
+      when: always
+
+    - if: !reference [.is_release_branch, if]
+      when: always
+
+run_unit_tests:
+  stage: unit_tests
+  extends: .python_base_job
+  script:
+    - python3 -m pip install pytest pytest-timeout pytest-timestamper paramiko requests sdp-transform easydict
+    - python3 -m pytest -ra -vvvv -s -l -m "not requires_device" --junitxml="unit_tests.junit.xml" autolib
+  artifacts:
+    expire_in: 14 days
+    paths:
+      - unit_tests.junit.xml
+    when: always
+    reports:
+      junit: unit_tests.junit.xml
+
+build_package:
+  stage: build_package
+  extends: .python_base_job
+  script:
+    - python3 -m pip install --upgrade pip
+    - python3 -m pip install twine
+    - BUILD_NUMBER=$CI_PIPELINE_IID python3 generate_setup.py > setup.py
+    - python3 setup.py build
+    - python3 setup.py sdist
+    - python3 -m twine upload --repository-url ${PYPI_DEV_LOCATION} -u ${NEXUS_DEV_USER} -p ${NEXUS_DEV_CREDS} dist/*
+  artifacts:
+    paths:
+      - dist
+    expire_in: 5 days
+
+build_documentation:
+  stage: build_documentation
+  extends: .python_base_job
+  script:
+    - python3 -m pip install --upgrade pip
+    - BUILD_NUMBER=$CI_PIPELINE_ID python3 generate_setup.py > setup.py
+    - pip install -e .
+    - pip install sphinx==4.5.0
+    - pip install myst-parser
+    - ./build_documentation.sh
+  artifacts:
+    paths:
+      - built_documentation/_build/html
+    expire_in: 5 days
+
+build_container:
+  stage: build_container
+  extends: .base_job
+  needs: ["build_package"]
+  script:
+    - docker build . --no-cache --tag ${DOCKER_DEV_IMAGE_TAG} --tag ${DOCKER_DEV_LATEST_IMAGE_TAG}
+    - docker push ${DOCKER_DEV_IMAGE_TAG}
+    - docker push ${DOCKER_DEV_LATEST_IMAGE_TAG}
+
+test_container:
+  stage: test_container
+  extends: .base_job
+  needs: ["build_container"]
+  script:
+    - docker run --rm --entrypoint /usr/bin/env ${DOCKER_DEV_LATEST_IMAGE_TAG} python -c 'exec("""\nimport sys\n\ntry:\n  import autolib.models.qxseries.qx\nexcept ModuleNotFoundError as e:\n  sys.exit(255)\n""")'
+
+release_all:
+  stage: release_all
+  extends: .base_job
+  rules:
+    - if: !reference [.is_release_branch, if]
+      when: manual
+  needs: ["build_package","build_container","build_documentation","test_container"]
+  # Don't block the pipeline as won't be run for non-main/non-release builds
+  allow_failure: true
+  script:
+    - |
+      slugify () {
+          echo "$1" | sed -r s/[~\^]+//g | sed -r s/[^a-zA-Z0-9_.-]+/-/g | sed -r s/^-+\|-+$//g
+      }
+    - |
+      # Get the most recent annotated tag that points at this SHA1
+      TAGNAME=$(git tag --points-at HEAD --sort=-taggerdate --format '%(tag)' "release_*" | head -n 1)
+      if [ -z "${TAGNAME}" ]
+      then
+          echo "ERROR: There is no annotated release tag created for this SHA1 - please create an annotated release tag (in the format 'release_*') and try again"
+          exit 1
+      fi
+      DOCKER_TAG=$(slugify "${TAGNAME}")
+    - |
+      if [ -z "${DOCKER_RELEASE_CREDS}" ]
+      then
+          echo "ERROR: Docker credentials are NULL - are they configured in Gitlab? Are the branch/tag/credential protection settings correct?"
+          exit 1
+      fi
+    - echo "${DOCKER_RELEASE_CREDS}" | docker login --username ${DOCKER_RELEASE_USER} --password-stdin ${NEXUS_DOCKER_RELEASE_REGISTRY}
+    - docker pull ${DOCKER_DEV_IMAGE_TAG}
+    - echo "Creating tag ${DOCKER_RELEASE_IMAGE}:${DOCKER_TAG}"
+    - docker tag ${DOCKER_DEV_IMAGE_TAG} ${DOCKER_RELEASE_IMAGE}:${DOCKER_TAG}
+    - docker push ${DOCKER_RELEASE_IMAGE}:${DOCKER_TAG}
+    - |
+      # Every time a release is published we want the container to be tagged as latest too.
+      docker tag ${DOCKER_DEV_IMAGE_TAG} ${DOCKER_RELEASE_IMAGE}:latest
+    - docker push ${DOCKER_RELEASE_IMAGE}:latest
+    - |
+      apt-get update
+      apt-get install -y python3-pip
+      python3 -m pip install twine
+      python3 -m twine upload --repository-url ${PYPI_RELEASE_LOCATION} -u ${NEXUS_RELEASE_USER} -p ${NEXUS_RELEASE_CREDS} dist/*
+    - |
+      original_dir=$(pwd)
+      cd built_documentation/_build/html
+      chmod 600 $DEPLOY_SSH_KEY
+      ssh -i ${DEPLOY_SSH_KEY} -o StrictHostKeyChecking=no ${DEPLOY_USERHOST} "rm -fr '${DEPLOY_REMOTE_PATH}.prev'" || true
+      ssh -i ${DEPLOY_SSH_KEY} -o StrictHostKeyChecking=no ${DEPLOY_USERHOST} "mv '${DEPLOY_REMOTE_PATH}' '${DEPLOY_REMOTE_PATH}.prev'" || true
+      ssh -i ${DEPLOY_SSH_KEY} -o StrictHostKeyChecking=no ${DEPLOY_USERHOST} "mkdir -p '/home/lighttpd/${DEPLOY_REMOTE_PATH}'"
+      scp -r -i ${DEPLOY_SSH_KEY} -oStrictHostKeyChecking=no * ${DEPLOY_USERHOST}:${DEPLOY_REMOTE_PATH}/.
+      cd $original_dir
