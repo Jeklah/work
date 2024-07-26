@@ -10,12 +10,26 @@ LXP500_PASS: str = 'PragmaticPhantastic'  # 'PictureWFMAnalyze'
 
 
 def transport_connect(hostname: str, user: str, password: str) -> paramiko.Transport:
+    """
+    Create a transport object and connect to the remote server.
+
+    :param hostname: Hostname of the remote server
+    :param user: Username for the connection
+    :param password: Password for the connection
+    """
     transport = paramiko.Transport((hostname, 22))
     transport.connect(username=user, password=password)
     return transport
 
 
 def sftp_upload(hostnamename: str, preset_name: str, unit_type: str) -> bool:
+    """
+    Upload a preset file using SFTP.
+
+    :param hostnamename: Hostname of the remote server
+    :param preset_name: Name of the preset file to upload
+    :param unit_type: Type of the unit (qx or lpx500)
+    """
 
     # File details
     file_name: str = f'{preset_name}.preset'
@@ -39,6 +53,13 @@ def sftp_upload(hostnamename: str, preset_name: str, unit_type: str) -> bool:
 
 
 def sftp_connect(hostname: str, preset_name: str, unit_type: str) -> bool:
+    """
+    Connect to the remote server using SFTP.
+
+    :param hostname: Hostname of the remote server
+    :param preset_name: Name of the preset file to upload
+    :param unit_type: Type of the unit (qx or lpx500)
+    """
     if unit_type == 'qx':
         transport = transport_connect(hostname, USER, PASSW)
         sftp = paramiko.SFTPClient.from_transport(transport)
