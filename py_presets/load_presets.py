@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 A script that can be used by customers to upload a preset file or a directory
 containing preset files to a unit using SFTP.
@@ -6,10 +7,9 @@ Author: Arthur Bowers
 Company: Leader Electronics Ltd (Europe)
 Date: 29/07/2024
 """
-#!/usr/bin/env python3
 import os
 import paramiko
-import argpars
+import argparse
 
 
 USER: str = 'qxuser'
