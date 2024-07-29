@@ -49,7 +49,7 @@ def sftp_connect(hostname: str, preset: str, unit_type: str) -> bool:
     try:
         return sftp_upload(hostname, preset, unit_type)
     except paramiko.AuthenticationException:
-        print("SFTP Authentication failed")
+        print("SFTP Authentication failed 1")
         return False
     except Exception as error:
         print(f"An SFTP error occurred: : {error}")
