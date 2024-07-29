@@ -1,6 +1,15 @@
-import argparse
-import paramiko
+"""
+A script that can be used by customers to upload a preset file or a directory
+containing preset files to a unit using SFTP.
+
+Author: Arthur Bowers
+Company: Leader Electronics Ltd (Europe)
+Date: 29/07/2024
+"""
+#!/usr/bin/env python3
 import os
+import paramiko
+import argpars
 
 
 USER: str = 'qxuser'
@@ -127,13 +136,13 @@ def upload_preset_dir(preset_dir: str, hostname: str) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Upload a file via SFTP and failback to SCP on authentication failure')
+        description='Upload a file via SFTP for Qx or LPX500')
     parser.add_argument('--hostname', type=str,
                         help='hostname of the remote server')
     parser.add_argument('--preset', type=str,
                         help='Name of the preset file to upload')
-    parser.add_argument('--unit-type', type=str, choices=['qx', 'lpx500'], required=True,
-                        help='Type of the unit (qx or lpx500)')
+    parser.add_argument('--unit-type', type=str, choices=['qx', 'lpx500'],
+                        required=True, help='Type of the unit (qx or lpx500)')
     parser.add_argument('--presetdir', type=str,
                         help='Name of the directory containing preset files to upload')
     args = parser.parse_args()
