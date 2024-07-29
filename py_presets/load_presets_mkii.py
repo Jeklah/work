@@ -94,6 +94,8 @@ def upload_preset_dir(preset_dir: str, hostname: str) -> bool:
     :param preset_dir: Name of the directory containing the preset files
     :param hostname: Hostname of the remote server
     """
+    model = hostname[:2]
+
     if not os.path.exists(preset_dir):
         print(f"Error: Directory '{preset_dir}' not found")
         return False
@@ -110,11 +112,13 @@ def upload_preset_dir(preset_dir: str, hostname: str) -> bool:
 
         # SFTP connection details
         try:
-            if not sftp_connect(hostname, file_name, 'qx'):
-                print("Could not connect using QxL credentials. Assuming Leader LPX500")
-                if not sftp_connect(hostname, file_name, 'lpx500'):
-                    print(f"Error: Upload failed for file '{file_name}'")
-                    return False
+            if model == 'qx':
+                sftp_connect(hostname, file_name, 'qx')
+            else:
+                sftp_connect(hostname, file_name, 'lpx500')
+        except paramiko.AuthenticationException:
+            print(f"Error: Upload failed for file '{file_name}'")
+            return False
         except Exception as error:
             print(f"An error occurred: {error}")
             return False
