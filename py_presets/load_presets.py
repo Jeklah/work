@@ -56,16 +56,16 @@ def sftp_connect(hostname: str, preset: str, unit_type: str) -> bool:
 
     # SFTP connection details
     try:
-        return sftp_upload(hostname, preset, unit_type)
+        return sftp_upload(hostname, preset)
     except paramiko.AuthenticationException:
-        print("SFTP Authentication failed 1")
+        print("SFTP Authentication failed")
         return False
     except Exception as error:
         print(f"An SFTP error occurred: : {error}")
         return False
 
 
-def sftp_upload(hostname: str, preset: str, unit_type: str) -> bool:
+def sftp_upload(hostname: str, preset: str) -> bool:
     """
     Connect to the remote server using SFTP.
 
@@ -73,18 +73,16 @@ def sftp_upload(hostname: str, preset: str, unit_type: str) -> bool:
     :param preset: Name of the preset file to upload
     :param unit_type: Type of the unit (qx or lpx500)
     """
-    if unit_type == 'lpx500':
-        transport = transport_connect(hostname, LXP500_USER, LXP500_PASS)
-        sftp = paramiko.SFTPClient.from_transport(transport)
-        #  'leader/transfer/presets' is the path for the leader user on the LPX500
-        sftp.chdir('/home/sftp/leader/transfer/presets')  # type: ignore
-    elif unit_type == 'qx':
+    model = hostname[:2]
+    if model == 'qx':
         transport = transport_connect(hostname, USER, PASSW)
         sftp = paramiko.SFTPClient.from_transport(transport)
         sftp.chdir('transfer/presets')  # type: ignore
     else:
-        print("Error: Invalid unit type")
-        return False
+        transport = transport_connect(hostname, LXP500_USER, LXP500_PASS)
+        sftp = paramiko.SFTPClient.from_transport(transport)
+        #  'leader/transfer/presets' is the path for the leader user on the LPX500
+        sftp.chdir('/home/sftp/leader/transfer/presets')  # type: ignore
     file_name = preset if preset.endswith('.preset') else f'{preset}.preset'
     remote_path = f'transfer/presets/{file_name}'
     local_path = os.path.join(os.getcwd(), file_name)
@@ -92,7 +90,7 @@ def sftp_upload(hostname: str, preset: str, unit_type: str) -> bool:
     sftp.close()  # type: ignore
     transport.close()
     print(
-        f"SFTP upload success: {local_path} to {hostname}:{remote_path} 1")
+        f"SFTP upload success: {local_path} to {hostname}:{remote_path}")
     return True
 
 
@@ -111,8 +109,6 @@ def upload_preset_dir(preset_dir: str, hostname: str) -> bool:
 
     os.chdir(preset_dir)
     for file_name in os.listdir(os.getcwd()):
-        # if not file_name.endswith('.preset'):
-        # continue
         cwd = os.getcwd()
         local_path = os.path.join(cwd, file_name)
         if not os.path.exists(local_path):
@@ -122,7 +118,7 @@ def upload_preset_dir(preset_dir: str, hostname: str) -> bool:
         # SFTP connection details
         try:
             if model == 'qx':
-                sftp_connect(hostname, file_name, 'qx')
+                sftp_connect(hostname, file_name, model)
             else:
                 sftp_connect(hostname, file_name, 'lpx500')
         except paramiko.AuthenticationException:
@@ -141,16 +137,20 @@ def main():
                         help='hostname of the remote server')
     parser.add_argument('--preset', type=str,
                         help='Name of the preset file to upload')
-    parser.add_argument('--unit-type', type=str, choices=['qx', 'lpx500'],
-                        required=True, help='Type of the unit (qx or lpx500)')
+    # parser.add_argument('--unit-type', type=str, choices=['qx', 'lpx500'],
+    #                    required = True, help = 'Type of the unit (qx or lpx500)')
     parser.add_argument('--presetdir', type=str,
                         help='Name of the directory containing preset files to upload')
     args = parser.parse_args()
 
+    unit_type = args.hostname[:2]
+    if unit_type != 'qx':
+        unit_type = 'lpx500'
+
     if not args.preset and not args.presetdir:
         print("Error: Please provide a preset name or directory")
     elif args.preset:
-        if args.unit_type == 'qx':
+        if unit_type == 'qx':
             sftp_connect(args.hostname, args.preset, 'qx')
         else:
             sftp_connect(args.hostname, args.preset, 'lpx500')
