@@ -28,7 +28,6 @@ def does_file_exist(file_name: str, sftp_conn: paramiko.SFTPClient) -> bool:
     :return: True if the file exists, False otherwise
     """
     try:
-        print(f"cwd: {sftp_conn.getcwd()}")
         sftp_conn.stat(path=file_name)
         return True
     except FileNotFoundError:
@@ -69,7 +68,6 @@ def sftp_upload(hostname: str, preset: str) -> bool:
 
     try:
         sftp = paramiko.SFTPClient.from_transport(transport)
-        print(f"remote_dir: {remote_dir}")
         sftp.chdir(remote_dir)  # type: ignore
         file_name = preset if preset.endswith(
             '.preset') else f'{preset}.preset'
