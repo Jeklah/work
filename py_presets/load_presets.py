@@ -102,6 +102,7 @@ def sftp_connect(hostname: str, preset: str) -> bool:
 
     :param hostname: Hostname of the remote server
     :param preset: Name of the preset file to upload
+    :return: True if the upload was successful, False otherwise
     """
     # File details
     file_name: str = ''
