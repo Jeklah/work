@@ -57,6 +57,13 @@ def sftp_upload(hostname: str, preset: str) -> bool:
     :param preset: Name of the preset file to upload
     :return: True if the upload was successful, False otherwise
     """
+    if not preset.endswith('.preset'):
+        upload_anyway = input(
+            f"Warning: The file '{preset}' does not have a .preset extension. Would you still like to upload?")
+        if upload_anyway.lower() == 'y':
+            print("Upload cancelled.")
+            return False
+
     model = hostname[:2]
     if model == 'qx':
         transport = transport_connect(hostname, USER, PASSW)
@@ -109,7 +116,7 @@ def sftp_connect(hostname: str, preset: str) -> bool:
         return False
     if preset is None:
         return False  # Code is reachable despite what pyright says
-    file_name = preset if preset.endswith('.preset') else f'{preset}.preset'
+    file_name = preset if preset.endswith('.preset') else f'{preset}'
     local_path: str = os.path.join(os.getcwd(), file_name)
 
     # Check if the file exists
