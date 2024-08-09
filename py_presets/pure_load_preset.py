@@ -52,3 +52,30 @@ def load_preset(hostname: str, preset: str) -> bool:
         return False
     finally:
         conn.close()
+
+
+def ftp_upload(hostname: str, username: str, password: str, local_path: str, remote_dir: str) -> bool:
+    """
+    Upload a file using FTP.
+
+    :param hostname: Hostname of the FTP server.
+    :param username: Username for authentication.
+    :param password: Password for authentication.
+    :param local_path: Path to the local file.
+    :param remote_dir: Remote directory to upload the file to.
+    :return: True if the upload was successful, False otherwise.
+    """
+    try:
+        with ftplib.FTP(hostname) as ftp:
+            ftp.login(user=username, passwd=password)
+            ftp.cwd(remote_dir)
+
+            with open(local_path, 'rb') as file:
+                ftp.storbinary(f'STOR {os.path.basename(local_path)}', file)
+
+            print(
+                f"FTP upload success: {local_path} to {hostname}:{remote_dir}")
+            return True
+    except ftplib.all_errors as error:
+        print(f"FTP upload failed: {error}")
+    return False
