@@ -79,3 +79,31 @@ def ftp_upload(hostname: str, username: str, password: str, local_path: str, rem
     except ftplib.all_errors as error:
         print(f"FTP upload failed: {error}")
     return False
+
+
+def upload_preset_file(hostname: str, preset: str) -> bool:
+    """
+    Upload a preset file using FTP.
+
+    :param hostname: Hostname of the unit.
+    :param preset: Name of the preset file to upload,
+    :return: True if the upload was successful, False, otherwise.
+    """
+    if not preset.endswith('.preset'):
+        upload_anyway = input(
+            f"Warning: The file '{preset}' does not have a .preset extension. Would you still like to upload? (y/n)")
+        if upload_anyway.lower() != 'y':
+            print("Upload cancelled.")
+            return False
+    model = hostname[:2]
+    if model == 'qx':
+        username = USER
+        password = PASSW
+        remote_dir = '/transfer/presets'
+    else:
+        username = LXP500_USER
+        password = LXP500_PASS
+        remote_dir = '/home/leader/transfer/presets'
+
+    local_path = os.path.join(os.getcwd(), preset)
+    return ftp_upload(hostname, username, password, local_path, remote_dir)
