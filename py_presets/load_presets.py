@@ -9,14 +9,50 @@ Date: 29/07/2024
 """
 import sys
 import os
-import paramiko
+import paramiko  # type: ignore
+import requests  # type: ignore
 import argparse
+import json
 
 # User credentials
 USER: str = 'qxuser'
 PASSW: str = 'phabrixqx'
 LXP500_USER: str = 'root'  # 'leader'
 LXP500_PASS: str = 'PragmaticPhantastic'  # 'PictureWFMAnalyze'
+
+load_preset_file = 'my_preset'
+
+
+def load_preset(hostname: str, preset: str) -> bool:
+    """
+    Load a preset file to a unit using the REST API.
+
+    :param hostname: Hostname of the unit
+    :param preset: Name of the preset file to load
+    :return: True if the load was successful, False otherwise
+    """
+    if preset.endswith('.preset'):
+        print("Error: Please provide a preset file without the .preset extension")
+        return False
+
+    url = f'http://{hostname}:8080/api/v1/presets/userPresets/{preset}'
+    headers = {"Content-Type": "application/json"}
+    data = {"action": "load"}
+
+    try:
+        response = requests.put(url, headers=headers,
+                                data=json.dumps(data), verify=False)
+        print(f'{response.json()}')
+        print(f'{response.status_code}')
+        if response.status_code == 200:
+            print(f"Preset '{preset}' loaded successfully")
+            return True
+        else:
+            print(f"Error: Failed to load preset '{preset}'")
+            return False
+    except requests.exceptions.RequestException as error:
+        print(f"An error occurred: {error}")
+        return False
 
 
 def does_file_exist(file_name: str, sftp_conn: paramiko.SFTPClient) -> bool:
@@ -196,18 +232,22 @@ def main():
         description='Upload a file via SFTP for Qx or LPX500')
     parser.add_argument('--hostname', type=str,
                         help='hostname of the remote server')
-    parser.add_argument('--preset', type=str,
+    parser.add_argument('--upload_preset', type=str,
                         help='Name of the preset file to upload')
     parser.add_argument('--presetdir', type=str,
                         help='Name of the directory containing preset files to upload')
+    parser.add_argument('--load', type=str,
+                        help='Load a preset file for the unit use')
     args = parser.parse_args()
 
-    if not args.preset and not args.presetdir:
+    if not args.upload_preset and not args.presetdir and not args.load:
         print("Error: Please provide a preset file or directory.")
         sys.exit(1)
 
-    if args.preset:
+    if args.upload_preset:
         success = sftp_connect(args.hostname, args.preset)
+    elif args.load:
+        success = load_preset(args.hostname, args.load)
     else:
         success = upload_preset_dir(args.presetdir, args.hostname)
 
