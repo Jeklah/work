@@ -1,100 +1,59 @@
 import sys
 import os
-import ftplib
-import http.client
+import subprocess
+import requests
 import argparse
 import json
 
-# User credentials
 USER: str = 'qxuser'
 PASSW: str = 'phabrixqx'
-LXP500_USER: str = 'root'  # 'leader'
-LXP500_PASS: str = 'PragmaticPhantastic'  # 'PictureWFMAnalyze'
-
-load_preset_file = 'my_preset'
+LXP500_USER: str = 'root'
+LXP500_PASSW: str = 'PragmaticPhantastic'
 
 
 def load_preset(hostname: str, preset: str) -> bool:
     """
-    Load a preset file to a unit using the REST API.
+    Load a preset file to a unit using the REST API
 
     :param hostname: Hostname of the unit
     :param preset: Name of the preset file to load
-    :return: True if the load was successful, False otherwise
+    :return: True if successful, False otherwise
     """
-    if preset.endswith('.preset'):
-        print("Error: Please provide a preset file without the .preset extension")
-        return False
-
-    url = f'/api/v1/presets/userPresets/{preset}'
+    preset = preset.removesuffix('.preset')   # type: ignore
+    url = f'http://{hostname}:8080/api/v1/presets/userPresets/{preset}'
     headers = {"Content-Type": "application/json"}
     data = {"action": "load"}
-
-    # Create a connection to the unit
-    conn = http.client.HTTPConnection(hostname, 8080)
-
+    print("Loading preset...")
     try:
-        # Prepare the request headers and body
-        conn.request('PUT', url, body=json.dumps(data), headers=headers)
-
-        # Get the response
-        response = conn.getresponse()
-
-        # Check the response status
-        if response.status == 200:
+        response = requests.put(url, headers=headers,
+                                data=json.dumps(data), verify=False)
+        if response.status_code == 200:
             print(f"Preset '{preset}' loaded successfully")
             return True
         else:
-            print(f"Error: Failed to load preset '{preset}'")
-            return False
-    except Exception as error:
-        print(f"An error occurred: {error}")
-        return False
-    finally:
-        conn.close()
-
-
-def ftp_upload(hostname: str, username: str, password: str, local_path: str, remote_dir: str) -> bool:
-    """
-    Upload a file using FTP.
-
-    :param hostname: Hostname of the FTP server.
-    :param username: Username for authentication.
-    :param password: Password for authentication.
-    :param local_path: Path to the local file.
-    :param remote_dir: Remote directory to upload the file to.
-    :return: True if the upload was successful, False otherwise.
-    """
-    try:
-        with ftplib.FTP(hostname) as ftp:
-            ftp.login(user=username, passwd=password)
-            ftp.cwd(remote_dir)
-
-            with open(local_path, 'rb') as file:
-                ftp.storbinary(f'STOR {os.path.basename(local_path)}', file)
-
             print(
-                f"FTP upload success: {local_path} to {hostname}:{remote_dir}")
-            return True
-    except ftplib.all_errors as error:
-        print(f"FTP upload failed: {error}")
-    return False
+                f"Error Failed to load preset '{preset}'. Status code: {response.status_code}")
+            return False
+    except requests.exceptions.RequestException as e:
+        print(f'Error: {e}')
+        return False
 
 
-def upload_preset_file(hostname: str, preset: str) -> bool:
+def sftp_upload(hostname: str, preset: str) -> bool:
     """
-    Upload a preset file using FTP.
+    Connect to the remote server using SFTP and upload a preset file.
 
-    :param hostname: Hostname of the unit.
-    :param preset: Name of the preset file to upload,
-    :return: True if the upload was successful, False, otherwise.
+    :param hostname: Hostname of the unit
+    :param preset: Name of the preset file to upload
+    :return: True if successful, False otherwise
     """
     if not preset.endswith('.preset'):
         upload_anyway = input(
-            f"Warning: The file '{preset}' does not have a .preset extension. Would you still like to upload? (y/n)")
+            f"Warning: The file '{preset}' does not have the .preset extension. Do you want to upload it anyway? (y/n): ")
         if upload_anyway.lower() != 'y':
-            print("Upload cancelled.")
+            print('Upload cancelled')
             return False
+
     model = hostname[:2]
     if model == 'qx':
         username = USER
@@ -102,8 +61,90 @@ def upload_preset_file(hostname: str, preset: str) -> bool:
         remote_dir = '/transfer/presets'
     else:
         username = LXP500_USER
-        password = LXP500_PASS
-        remote_dir = '/home/leader/transfer/presets'
+        password = LXP500_PASSW
+        remote_dir = '/home/sftp/leader/transfer/presets'
 
-    local_path = os.path.join(os.getcwd(), preset)
-    return ftp_upload(hostname, username, password, local_path, remote_dir)
+    try:
+        file_name = preset if preset.endswith(
+            '.preset') else f'{preset}.preset'
+        local_path = os.path.join(os.getcwd(), file_name)
+        remote_path = os.path.join(remote_dir, file_name)
+
+        command = f'echo "{password}" | sftp -oBatchMode=no -b - {username}@{hostname} <<EOF\nput {local_path} {remote_path}\nEOF'
+        result = subprocess.run(command, shell=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        if result.returncode == 0:
+            print(
+                f"SFTP upload success: {local_path} to {hostname}:{remote_path}")
+            return True
+        else:
+            print(f"SFTP upload failed with code {result.returncode}")
+            print(f"Error: {result.stderr.decode()}")
+            return False
+    except Exception as e:
+        print(f'Error: {e}')
+        return False
+
+
+def upload_preset_dir(preset_dir: str, hostname: str) -> bool:
+    """
+    Upload all preset files in a directory to a remote server using SFTP.
+
+    :param preset_dir: Directory containing the preset files
+    :param hostname: Hostname of the unit
+    :return: True if successful, False otherwise
+    """
+    if not os.path.exists(preset_dir):
+        print(f"Error: Directory '{preset_dir}' does not exist")
+        return False
+
+    model = hostname[:2]
+    if model == 'qx':
+        username = USER
+        password = PASSW
+        remote_dir = '/transfer/presets'
+    else:
+        username = LXP500_USER
+        password = LXP500_PASSW
+        remote_dir = '/home/sftp/leader/transfer/presets'
+
+    success = True
+    for file_name in os.listdir(preset_dir):
+        local_path = os.path.join(preset_dir, file_name)
+        if not os.path.isfile(local_path):
+            continue
+
+        command = f'echo "{password}" | sftp -oBatchMode=no -b - {username}@{hostname} <<EOF\nput {local_path} {remote_dir}\nEOF'
+        result = subprocess.run(command, shell=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        if result.returncode != 0:
+            print(
+                f"SFTP upload failed for {local_path} with code {result.returncode}")
+            print(f"Error: {result.stderr.decode()}")
+            success = False
+
+    return success
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Load a preset file to a unit using the REST API')
+    parser.add_argument('--hostname', help='Hostname of the unit')
+    parser.add_argument('--preset', help='Name of the preset file to load')
+    parser.add_argument(
+        '-d', '--dir', help='Directory containing the preset files to upload')
+    args = parser.parse_args()
+
+    if not args.hostname and not args.preset and not args.dir:
+        parser.print_help()
+        sys.exit()
+    if args.dir:
+        success = upload_preset_dir(args.dir, args.hostname)
+    elif success := sftp_upload(args.hostname, args.preset):
+        success = load_preset(args.hostname, args.preset)
+
+
+if __name__ == '__main__':
+    main()
